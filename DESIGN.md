@@ -56,3 +56,19 @@ Looting through options for markdown, the most used and best supported seems to 
 (pulldown-cmark)[https://crates.io/crates/pulldown-cmark]. As an actual parser,
 it seems a little odd (it's a pull parser, so it reports events rather than
 creating an AST), but I shouldn't need, and it has a built-in html generator, so meh.
+
+## Templates
+
+At the early stages, there should be no need for templates, because I'm simply
+showing a single document. Thus, I can add a *header* and *footer* block to the
+start and end, rather than building a more complicated document.
+
+A templating library might be more useful if I want to add some file-browser
+functionality.
+
+## Dynamic pages
+
+At the start, there won't be any dynamic features to the page, but as I build
+more, there likely will be -- like the project browser, search, etc. At that
+point, I may choose to write it in typescript, rust via wasm, or both as a
+learning exercise.
