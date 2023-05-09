@@ -49,3 +49,10 @@ There is also a threadpool provided by **Rayon**, but that project is focused on
 data-parallelism, which certainly is not my use case. There is no need to import
 all of Rayon to simply use a threadpool. That crate would be more
 useful for other projects that I have in mind.
+
+## Markdown
+
+Looting through options for markdown, the most used and best supported seems to be
+(pulldown-cmark)[https://crates.io/crates/pulldown-cmark]. As an actual parser,
+it seems a little odd (it's a pull parser, so it reports events rather than
+creating an AST), but I shouldn't need, and it has a built-in html generator, so meh.
