@@ -14,6 +14,46 @@ headers.
 Looking at established rust programs (like cargo), the **hyper** crate appears
 to be the best http server/client package.
 
+### Hyper (not used)
+
+After an initial attempt with `hyper`, I discovered that it is deeply dependent
+on Tokio. The easiest thing would be to simply use hyper/tokio anyway, but I
+want a lower-level understanding of rust. So for learning purposes, I'll be
+monitoring the TCP connections directly.
+
+This Tokio dependence goes down to the `async` implementations for TCP:
+- std::net::Tcp* can be non-blocking, but it is not an async function
+- hyper uses tokio::net::Tcp* for its async implementations.
+- in turn, tokio::net is built on `mio`, which uses OS events and polling to
+  check if there's anything to read.
+
+### Chosen HTTP implementation
+
+If I don't want to use Tokio, then I need to process the HTTP connections
+myself. Hyper uses `httparse` for HTTP/1.x, and `h2` (dependent on tokio) for
+HTTP/2. So I only have "easy" access to HTTP/1.1. 
+
+`httparse` takes a `&[u8]` buffer and performs no data copies -- all parsed
+values are `&[u8]` slices into the original buffer. Because of that, the entire
+buffer must be in-memory and unchanged during the parsing and subsequent use.
+**The HTTP request cannot be passed line-by-line or in chunks**.
+
+In the event of a partial request, calling `.parse(&buf)` on `httparse::Request`
+will return an `Incomplete` status, but the request object still owns a
+reference to the buffer, preventing any updates. Because of that, the parser
+must be re-initialized and started.
+
+For easier use after parsing, there is `http::{Request, Response}`. These types
+do not include any parsing functionality, but are much better for passing
+around, because they own the data inside (except maybe the body if
+`Request<&[u8]>` is used).
+
+So, for handling requests, I'll have to 
+1. read the complete stream into a buffer,
+2. pass the buffer to `httparse::Request` for parsing,
+3. construct a `http::Request` for actual use.
+
+
 ## Concurrency / Asynchronous runtime
 
 **Tokio** appears to be the defacto standard for network applications using an
