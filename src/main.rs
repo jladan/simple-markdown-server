@@ -12,19 +12,28 @@ fn main() -> std::io::Result<()> {
     let listener = TcpListener::bind(addr)?;
 
 
-    let mut request: Result<http::Request<String>, ReqError> = Err(ReqError::Incomplete);
     for stream in listener.incoming().take(1) {
         let mut buf: Vec<u8> = Vec::new();
-        stream.unwrap().read_to_end(&mut buf)?;
-        request = parse_request(&buf);
-    }
-    if let Ok(req) = request {
-        println!("{:#?}", req);
+        let mut stream = stream.unwrap();
+        stream.read_to_end(&mut buf)?;
+        let request = parse_request(&buf);
+        if let Ok(req) = request {
+            println!("{:#?}", req);
+            process_request(stream, req);
+        }
     }
 
     Ok(())
 }
 
+
+/// Parse a buffer into an `http::Request<String>`
+///
+/// # Errors
+///   - If the request is incomplete, `ReqError::Incomplete`
+///   - If the parser fails, `ReqError::Parse(httparse::Error)`
+///   - If the body is not UTF8, `ReqError::Encoding(string::FromUTF8Error)`
+///   - If the converting to an `http::Request` fails,  `ReqError::Convert(http::Error)`
 fn parse_request(buf: &[u8]) -> Result<http::Request<String>, ReqError>  {
     let mut headers = [httparse::EMPTY_HEADER; MAX_HEADERS];
     let mut preq = httparse::Request::new(&mut headers);
