@@ -1,6 +1,6 @@
 use std::{
-    net::{SocketAddr, TcpListener, TcpStream}, 
-    io::{Read, Write, BufReader, BufRead}, 
+    net::{SocketAddr, TcpListener}, 
+    io::{Write, BufReader, BufRead}, 
     string,
 };
 
@@ -13,7 +13,7 @@ fn main() -> std::io::Result<()> {
     let listener = TcpListener::bind(addr)?;
 
 
-    for stream in listener.incoming().take(1) {
+    for stream in listener.incoming().take(3) {
         let mut stream = stream.unwrap();
         let mut buf_reader = BufReader::new(&stream);
         // let mut buf: Vec<u8> = Vec::new();
@@ -28,11 +28,11 @@ fn main() -> std::io::Result<()> {
             }
         };
         if let Ok(req) = request {
-            println!("{:#?}", req);
             process_request(req);
         }
-        stream.write_all(b"Hello World\r\n")?;
-        drop(stream);
+        let encoded = response_to_bytes(respond_hello_world()).unwrap();
+        println!("{}", encoded);
+        stream.write_all(&encoded.as_bytes())?;
     }
 
     Ok(())
@@ -41,11 +41,11 @@ fn main() -> std::io::Result<()> {
 fn process_request(request: http::Request<String>) {
     if request.method() == http::Method::GET {
         let resp = respond_hello_world();
-        println!("{}", String::from_utf8(response_to_bytes(resp).unwrap()).unwrap());
+        println!("{}", response_to_bytes(resp).unwrap());
     }
 }
 
-fn response_to_bytes(resp: http::Response<String>) -> Result<Vec<u8>, ResError> {
+fn response_to_bytes(resp: http::Response<String>) -> Result<String, ResError> {
     use http::StatusCode;
     let mut encoded = String::new();
     let (parts, body) = resp.into_parts();
@@ -54,12 +54,13 @@ fn response_to_bytes(resp: http::Response<String>) -> Result<Vec<u8>, ResError> 
         StatusCode::NOT_FOUND => Ok("404 NOT FOUND"),
         _ => Err(ResError::Unimplemented)
     }?;
-    encoded.push_str(&format!("{:?} {status_code}/r/n", parts.version));
+    encoded.push_str(&format!("{:?} {status_code}\r\n", parts.version));
     for (k, v) in parts.headers.iter() {
-        encoded.push_str(&format!("{}: {}", k, v.to_str()?));
+        encoded.push_str(&format!("{}: {}\r\n", k, v.to_str()?));
     }
+    encoded.push_str(&format!("\r\n{body}"));
 
-    Ok(encoded.as_bytes().to_vec())
+    Ok(encoded)
 }
 
 fn respond_hello_world() -> http::Response<String> {
