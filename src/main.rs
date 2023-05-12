@@ -1,8 +1,10 @@
 use std::{
     net::{SocketAddr, TcpListener, TcpStream}, 
-    io::{Read, Write}, 
+    io::{Read, Write, BufReader, BufRead}, 
     string,
 };
+
+use http::header::ToStrError;
 
 const MAX_HEADERS: usize = 100;
 
@@ -12,20 +14,31 @@ fn main() -> std::io::Result<()> {
 
 
     for stream in listener.incoming().take(1) {
-        let mut buf: Vec<u8> = Vec::new();
         let mut stream = stream.unwrap();
-        stream.read_to_end(&mut buf)?;
-        let request = parse_request(&buf);
+        let mut buf_reader = BufReader::new(&stream);
+        // let mut buf: Vec<u8> = Vec::new();
+        let mut buf: String = String::new();
+        // stream.read_to_end(&mut buf)?;
+        let request = loop {
+            buf_reader.read_line(&mut buf)?;
+            let r = parse_request(&buf.as_bytes());
+            match r {
+                Err(ReqError::Incomplete) => continue,
+                _ => break r,
+            }
+        };
         if let Ok(req) = request {
             println!("{:#?}", req);
-            process_request(stream, req);
+            process_request(req);
         }
+        stream.write_all(b"Hello World\r\n")?;
+        drop(stream);
     }
 
     Ok(())
 }
 
-fn process_request(stream: TcpStream, request: http::Request<String>) {
+fn process_request(request: http::Request<String>) {
     if request.method() == http::Method::GET {
         let resp = respond_hello_world();
         println!("{}", String::from_utf8(response_to_bytes(resp).unwrap()).unwrap());
@@ -42,6 +55,9 @@ fn response_to_bytes(resp: http::Response<String>) -> Result<Vec<u8>, ResError> 
         _ => Err(ResError::Unimplemented)
     }?;
     encoded.push_str(&format!("{:?} {status_code}/r/n", parts.version));
+    for (k, v) in parts.headers.iter() {
+        encoded.push_str(&format!("{}: {}", k, v.to_str()?));
+    }
 
     Ok(encoded.as_bytes().to_vec())
 }
@@ -84,10 +100,18 @@ fn parse_request(buf: &[u8]) -> Result<http::Request<String>, ReqError>  {
     Err(ReqError::Incomplete)
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 enum ResError {
     Unimplemented,
+    Encoding(ToStrError),
 }
+
+impl From<ToStrError> for ResError {
+    fn from(value: ToStrError) -> Self {
+        ResError::Encoding(value)
+    }
+}
+
 #[derive(Debug)]
 enum ReqError {
     Incomplete,
