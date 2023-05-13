@@ -18,7 +18,18 @@ pub fn from_bufread(buf_reader: &mut impl BufRead)
         };
     }?;
     // At this point, the buffer should be at start of body
-    // TODO read the body if there is one
+    // Now read the body if there is one
+    if let Some(clength) = request.headers().get("content-length") {
+        // The `.to_vec()` performs the memory copd
+        let clength: usize = clength.to_str().unwrap().parse().unwrap();
+        // let buf_reader = buf_reader.take(clength as u64);
+        let mut body_buf: Vec<u8> = vec![0; clength];
+        let _read_len = buf_reader.read(&mut body_buf)?;
+        // eprintln!("Content length: {}\nRead length: {}\nBuffer length: {}",
+        //          clength, read_len, body_buf.len());
+
+        *(request.body_mut()) = String::from_utf8(body_buf)?;
+    }
     Ok(request)
 }
 
@@ -34,7 +45,7 @@ pub fn parse_headers(buf: &[u8]) -> Result<http::Request<String>, ReqError>  {
     let mut preq = httparse::Request::new(&mut headers);
     
     let result = preq.parse(&buf)?;
-    println!("parse result: {:?}", result);
+    // eprintln!("parse result: {:?}", result);
     if let httparse::Status::Complete(body_start) = result {
         assert!(buf.len() == body_start, 
                 "Header should end with \"\\r\\n\\r\\n\"");
@@ -43,10 +54,8 @@ pub fn parse_headers(buf: &[u8]) -> Result<http::Request<String>, ReqError>  {
             .uri(preq.path.unwrap());
         let request = preq.headers.iter()
             .fold(request, |r, h| r.header(h.name, h.value));
-        // The `.to_vec()` performs the memory copy
-        let body = String::from_utf8(buf[body_start..].to_vec())?;
 
-        return request.body(body)
+        return request.body(String::new())
             .map_err(|e| ReqError::Convert(e))
     }
     Err(ReqError::Incomplete)
