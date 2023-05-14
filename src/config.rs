@@ -6,6 +6,9 @@ use std::{
     path::{PathBuf, Path},
 };
 
+const ROOTDIR_KEY: &str = "web_root";
+const STATICDIR_KEY: &str = "static_dir";
+
 /// The config object to handle how pages are served
 ///
 /// # Properties
@@ -73,10 +76,10 @@ impl ConfigBuilder {
     /// rootdir sourced rom "WEB_ROOT"
     /// staticdir sourced from "STATIC_DIR"
     pub fn source_env(mut self) -> Self {
-        if let Ok(rootdir) = env::var("WEB_ROOT") {
+        if let Some(rootdir) = env::var_os(ROOTDIR_KEY) {
             self.rootdir = PathBuf::from(rootdir);
         }
-        if let Ok(static_dir) = env::var("STATIC_DIR") {
+        if let Some(static_dir) = env::var_os(STATICDIR_KEY) {
             self.staticdir = PathBuf::from(static_dir);
         }
         self
@@ -111,6 +114,7 @@ impl ConfigBuilder {
 
 #[cfg(test)]
 mod tests {
+    extern crate scopeguard;
     use super::*;
 
     #[test]
@@ -175,5 +179,79 @@ mod tests {
             .build();
         assert_ne!(PathBuf::from("static/footer.html"), built.footer);
         assert_eq!(PathBuf::from("/footer.html"), built.footer);
+    }
+
+    mod env_tests {
+        use super::super::*;
+        extern crate scopeguard;
+
+        #[test]
+        fn builder_sources_env_root() {
+            let test_val = "test/root/dir";
+            let _root_var = scopeguard::guard(env::var_os(ROOTDIR_KEY),
+            |root_var| { 
+                if let Some(root_var) = root_var {
+                    env::set_var(ROOTDIR_KEY, root_var);
+                } else {
+                    env::remove_var(ROOTDIR_KEY);
+                }
+            });
+            env::set_var(ROOTDIR_KEY, test_val);
+            let c = ConfigBuilder::new()
+                .source_env()
+                .build();
+
+            assert_eq!(PathBuf::from(test_val), c.rootdir);
+        }
+
+        #[test]
+        fn builder_sources_env_static() {
+            let test_val = "test/static/dir";
+            let _static_var = scopeguard::guard(env::var_os(STATICDIR_KEY),
+            |static_var| { 
+                if let Some(static_var) = static_var {
+                    env::set_var(STATICDIR_KEY, static_var);
+                } else {
+                    env::remove_var(STATICDIR_KEY);
+                }
+            });
+            env::set_var(STATICDIR_KEY, test_val);
+            let c = ConfigBuilder::new()
+                .source_env()
+                .build();
+
+            assert_eq!(PathBuf::from(test_val), c.staticdir);
+        }
+
+        #[test]
+        fn builder_sources_without_env() {
+            let _root_var = scopeguard::guard(env::var_os(ROOTDIR_KEY),
+            |root_var| { 
+                if let Some(root_var) = root_var {
+                    env::set_var(ROOTDIR_KEY, root_var);
+                } else {
+                    env::remove_var(ROOTDIR_KEY);
+                }
+            });
+            let _static_var = scopeguard::guard(env::var_os(STATICDIR_KEY),
+            |static_var| { 
+                if let Some(static_var) = static_var {
+                    env::set_var(STATICDIR_KEY, static_var);
+                } else {
+                    env::remove_var(STATICDIR_KEY);
+                }
+            });
+
+            env::remove_var(ROOTDIR_KEY);
+            env::remove_var(STATICDIR_KEY);
+            let default_config = Config::default();
+            let c = ConfigBuilder::new()
+                .source_env()
+                .build();
+
+            assert_eq!(default_config.rootdir, c.rootdir);
+            assert_eq!(default_config.staticdir, c.staticdir);
+        }
+
     }
 }
