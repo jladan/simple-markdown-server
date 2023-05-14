@@ -1,8 +1,10 @@
 //! Configuration Module
 //!
 
-use std::path::{PathBuf, Path};
-
+use std::{
+    env,
+    path::{PathBuf, Path},
+};
 
 /// The config object to handle how pages are served
 ///
@@ -29,6 +31,7 @@ impl Default for Config {
         }
     }
 }
+
 
 /// Builder for the configuration object
 ///
@@ -65,31 +68,41 @@ impl ConfigBuilder {
         }
     }
 
+    /// Sources Environment variables for the config
+    ///
+    /// rootdir sourced rom "WEB_ROOT"
+    /// staticdir sourced from "STATIC_DIR"
+    pub fn source_env(mut self) -> Self {
+        if let Ok(rootdir) = env::var("WEB_ROOT") {
+            self.rootdir = PathBuf::from(rootdir);
+        }
+        if let Ok(static_dir) = env::var("STATIC_DIR") {
+            self.staticdir = PathBuf::from(static_dir);
+        }
+        self
+    }
+
     /// Set the root directory for the fileserver
     pub fn set_root(mut self, path: &str) -> ConfigBuilder{
-        self.rootdir.clear();
-        self.rootdir.push(path);
+        self.rootdir = PathBuf::from(path);
         self
     }
 
     /// Set the static directory for the fileserver
     pub fn set_static(mut self, path: &str) -> ConfigBuilder{
-        self.staticdir.clear();
-        self.staticdir.push(path);
+        self.staticdir = PathBuf::from(path);
         self
     }
 
     /// Set the header file to be prepended to all markdown pages
     pub fn set_header(mut self, header: &str) -> ConfigBuilder{
-        self.header.clear();
-        self.header.push(header);
+        self.header = PathBuf::from(header);
         self
     }
 
     /// Set the footer file to be appended to all markdown pages
     pub fn set_footer(mut self, footer: &str) -> ConfigBuilder{
-        self.footer.clear();
-        self.footer.push(footer);
+        self.footer = PathBuf::from(footer);
         self
     }
 
