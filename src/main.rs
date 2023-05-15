@@ -1,6 +1,7 @@
 use std::{
     net::{SocketAddr, TcpListener}, 
     io::{Write, BufReader}, 
+    path::{PathBuf, Path}, 
 };
 
 use zettel_web::{
@@ -35,17 +36,50 @@ fn main() -> std::io::Result<()> {
 fn handle_request(req: http::Request<String>) -> http::Response<String> {
     use http::Method;
     match req.method() {
-        &Method::GET => respond_hello_world(),
+        &Method::GET => handle_get(req),
         _ => response::unimplemented(),
     }
 }
 
-fn respond_hello_world() -> http::Response<String> {
-    let content = String::from("Hello world");
+fn handle_get(req: http::Request<String>) -> http::Response<String> {
+    let path = PathBuf::from(req.uri().path());
+    let path = PathBuf::from("./").join(path.strip_prefix("/").unwrap());
+    eprintln!("{path:?}");
+    if path.is_dir() {
+        is_dir_response(&path)
+    } else if path.is_file() {
+        is_file_response(&path)
+    } else {
+        not_found_response(&path)
+    }
+}
+
+fn not_found_response(path: &Path) -> http::Response<String> {
+    let content = format!("File not found: {}", path.to_str().unwrap());
+    http::Response::builder()
+        .status(404)
+        .header("content-length", content.len())
+        .body(content)
+        .unwrap()
+}
+
+fn is_file_response(path: &Path) -> http::Response<String> {
+    string_response(format!("File Found: {}", path.to_str().unwrap()))
+}
+
+fn is_dir_response(path: &Path) -> http::Response<String> {
+    string_response(format!("Directory found: {}", path.to_str().unwrap()))
+}
+
+fn string_response(content: String) -> http::Response<String> {
     http::Response::builder()
         .status(200)
         .header("Content-Length", content.len())
-        .body(String::from("Hello World"))
+        .body(content)
         .unwrap()
+}
+
+fn respond_hello_world() -> http::Response<String> {
+    string_response(String::from("Hello world!"))
 }
 
