@@ -31,15 +31,11 @@ pub fn to_string(resp: http::Response<String>) -> Result<String, ResError> {
 
 /// Create the status line for a response
 fn statusline(parts: &http::response::Parts) -> Result<String, ResError> {
-    use http::StatusCode;
-    let status_code = match parts.status {
-        StatusCode::OK => Ok("200 OK"),
-        StatusCode::METHOD_NOT_ALLOWED => Ok("405 METHOD NOT ALLOWED"),
-        StatusCode::NOT_FOUND => Ok("404 NOT FOUND"),
-        StatusCode::NOT_IMPLEMENTED => Ok("501 NOT IMPLEMENTED"),
-        _ => Err(ResError::Unimplemented)
-    }?;
-   Ok(format!("{:?} {status_code}\r\n", parts.version))
+    let status_code = parts.status;
+   Ok(format!("{:?} {} {}\r\n", 
+              parts.version, 
+              status_code.as_str(), 
+              status_code.canonical_reason().expect("No canonical reason phrase")))
 }
 
 #[derive(Debug)]
