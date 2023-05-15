@@ -6,12 +6,15 @@ use std::{
 
 use zettel_web::{
     request::{self, ReqError},
-    response::{self, AsBytes},
+    response::{self, AsBytes}, 
+    config::Config,
 };
 
 fn main() -> std::io::Result<()> {
-    let addr = SocketAddr::from(([0,0,0,0], 7878));
-    let listener = TcpListener::bind(addr)?;
+    let config = Config::build()
+        .source_env()
+        .build();
+    let listener = TcpListener::bind(config.addr)?;
 
 
     for stream in listener.incoming().take(3) {

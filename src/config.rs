@@ -3,7 +3,7 @@
 
 use std::{
     env,
-    path::{PathBuf, Path},
+    path::{PathBuf, Path}, net::SocketAddr,
 };
 
 const ROOTDIR_KEY: &str = "web_root";
@@ -22,11 +22,20 @@ pub struct Config {
     pub staticdir: PathBuf,
     pub header: PathBuf,
     pub footer: PathBuf,
+    pub addr: SocketAddr,
+}
+
+impl Config {
+    pub fn build() -> ConfigBuilder {
+        ConfigBuilder::new()
+    }
+    
 }
 
 impl Default for Config {
     fn default() -> Config {
         Config {
+            addr: SocketAddr::from(([0,0,0,0], 7878)),
             rootdir: PathBuf::from("./"),
             staticdir: PathBuf::from("./"),
             header: PathBuf::from("./header.html"),
@@ -45,6 +54,7 @@ pub struct ConfigBuilder {
     staticdir: PathBuf,
     header: PathBuf,
     footer: PathBuf,
+    addr: SocketAddr,
 }
 
 impl ConfigBuilder {
@@ -56,6 +66,7 @@ impl ConfigBuilder {
             staticdir: config.staticdir,
             header: config.header,
             footer: config.footer,
+            addr: config.addr,
         }
     }
     
@@ -68,6 +79,7 @@ impl ConfigBuilder {
             staticdir: self.staticdir,
             header,
             footer,
+            addr: self.addr,
         }
     }
 
