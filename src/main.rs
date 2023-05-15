@@ -19,12 +19,13 @@ fn main() -> std::io::Result<()> {
         let mut buf_reader = BufReader::new(&stream);
         let req = request::from_bufread(&mut buf_reader);
         println!("{:#?}", req);
-        if let Ok(_req) = req {
-            let encoded = response::to_bytes(respond_hello_world()).unwrap();
+        if let Ok(req) = req {
+            let resp = handle_request(req);
+            let encoded = response::to_string(resp).unwrap();
             println!("{}", encoded);
             stream.write_all(&encoded.as_bytes())?;
         } else if let Err(ReqError::IO(e)) = req {
-                return Err(e);
+            return Err(e);
         }
 
     }
@@ -32,6 +33,13 @@ fn main() -> std::io::Result<()> {
     Ok(())
 }
 
+fn handle_request(req: http::Request<String>) -> http::Response<String> {
+    use http::Method;
+    match req.method() {
+        &Method::GET => respond_hello_world(),
+        _ => response::unimplemented(),
+    }
+}
 
 fn respond_hello_world() -> http::Response<String> {
     let content = String::from("Hello world");

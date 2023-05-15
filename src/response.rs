@@ -1,23 +1,23 @@
 use http::header::ToStrError;
 
 /// Create an "unimplemented" response for unimplemented requests
-pub fn unimplemented() -> http::Response<()> {
+pub fn unimplemented() -> http::Response<String> {
     http::Response::builder()
         .status(501)
-        .body(())
+        .body(String::new())
         .unwrap()
 }
 
 /// A "not allowed" response for recognized, but not allowed for the resource
-pub fn not_allowed() -> http::Response<()> {
+pub fn not_allowed() -> http::Response<String> {
     http::Response::builder()
         .status(405)
-        .body(())
+        .body(String::new())
         .unwrap()
 }
 
 /// Convert a full response to a string for sending to the client
-pub fn to_bytes(resp: http::Response<String>) -> Result<String, ResError> {
+pub fn to_string(resp: http::Response<String>) -> Result<String, ResError> {
     let mut encoded = String::new();
     let (parts, body) = resp.into_parts();
     encoded.push_str(&statusline(&parts)?);
