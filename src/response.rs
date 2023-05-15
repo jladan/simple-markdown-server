@@ -1,5 +1,24 @@
 use http::header::ToStrError;
 
+pub trait AsBytes {
+    fn as_bytes(self) -> Result<Vec<u8>, ResError>;
+    
+}
+
+impl AsBytes for http::Response<String> {
+    fn as_bytes(self) -> Result<Vec<u8>, ResError> {
+        to_string(self).map(|r| r.into_bytes())
+    }
+}
+
+impl AsBytes for http::Response<()> {
+    fn as_bytes(self) -> Result<Vec<u8>, ResError> {
+        todo!()
+    }
+}
+
+
+
 /// Create an "unimplemented" response for unimplemented requests
 pub fn unimplemented() -> http::Response<String> {
     http::Response::builder()

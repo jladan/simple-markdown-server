@@ -5,7 +5,7 @@ use std::{
 
 use zettel_web::{
     request::{self, ReqError},
-    response,
+    response::{self, AsBytes},
 };
 
 fn main() -> std::io::Result<()> {
@@ -21,9 +21,8 @@ fn main() -> std::io::Result<()> {
         println!("{:#?}", req);
         if let Ok(req) = req {
             let resp = handle_request(req);
-            let encoded = response::to_string(resp).unwrap();
-            println!("{}", encoded);
-            stream.write_all(&encoded.as_bytes())?;
+            let encoded = resp.as_bytes().unwrap();
+            stream.write_all(&encoded)?;
         } else if let Err(ReqError::IO(e)) = req {
             return Err(e);
         }
