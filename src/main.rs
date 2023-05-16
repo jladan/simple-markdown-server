@@ -6,7 +6,7 @@ use std::{
 
 use zettel_web::{
     request::{self, ReqError},
-    response::{self, AsBytes}, 
+    response::{self, IntoBytes}, 
     config::Config,
 };
 
@@ -24,7 +24,7 @@ fn main() -> std::io::Result<()> {
         println!("{:#?}", req);
         if let Ok(req) = req {
             let resp = handle_request(req);
-            let encoded = resp.as_bytes();
+            let encoded = resp.into_bytes();
             stream.write_all(&encoded)?;
         } else if let Err(ReqError::IO(e)) = req {
             return Err(e);

@@ -1,25 +1,27 @@
 
-pub trait AsBytes {
-    fn as_bytes(self) -> Vec<u8>;
+pub trait IntoBytes {
+    fn into_bytes(self) -> Vec<u8>;
     
 }
 
-impl AsBytes for http::Response<String> {
-    fn as_bytes(self) -> Vec<u8> {
-        to_string(self)
+impl IntoBytes for http::Response<String> {
+    fn into_bytes(self) -> Vec<u8> {
+        let (parts, body) = self.into_parts();
+        let h = encode_header(parts);
+        return [h, b"\r\n".to_vec(), body.into_bytes()].concat();
     }
 }
 
-impl AsBytes for http::Response<Vec<u8>> {
-    fn as_bytes(self) -> Vec<u8> {
+impl IntoBytes for http::Response<Vec<u8>> {
+    fn into_bytes(self) -> Vec<u8> {
         let (parts, body) = self.into_parts();
         let h = encode_header(parts);
         return [h, b"\r\n".to_vec(), body].concat();
     }
 }
 
-impl AsBytes for http::Response<()> {
-    fn as_bytes(self) -> Vec<u8> {
+impl IntoBytes for http::Response<()> {
+    fn into_bytes(self) -> Vec<u8> {
         let (parts, _) = self.into_parts();
         encode_header(parts)
     }
@@ -43,14 +45,6 @@ pub fn not_allowed() -> http::Response<Vec<u8>> {
         .unwrap()
 }
 
-/// Convert a full response to a string for sending to the client
-pub fn to_string(resp: http::Response<String>) -> Vec<u8> {
-    let (parts, body) = resp.into_parts();
-    let h = encode_header(parts);
-    let body = format!("\r\n{body}").as_bytes().to_vec();
-
-    return [h, body].concat();
-}
 
 /// Encode a response header
 pub fn encode_header(parts: http::response::Parts) -> Vec<u8> {
