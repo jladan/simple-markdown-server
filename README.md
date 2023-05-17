@@ -7,6 +7,7 @@ other files will be presented unchanged.
 ## Features
 
 - [ ] Custom configuration 
+    - [x] web root and static dir as environment variables
     - [ ] directory for the zettelkasten
     - [ ] styling files
     - [ ] headers and footers
@@ -14,16 +15,22 @@ other files will be presented unchanged.
     - [ ] port number
     - [ ] auto-open browser
 - [ ] Web server
-    - [ ] uri maps to filesystem with ZETTEL_DIR as root
+    - [x] uri maps to filesystem with ZETTEL_DIR as root
     - [ ] 404 page properly handled
+        - [ ] return 404 response
+        - [ ] include 404 page
+        - [ ] probably some help for navigating on a 404
     - [ ] `.md` or `.html` unnecessary
-    - [ ] probably some help for navigating on a 404
     - [ ] watch for file changes, and auto-refresh page
 - [ ] Document conversion
     - [ ] Convert `.md` to html automatically
-    - [ ] Support for images
+        - [x] strait conversion
+        - [ ] add header and footer
+        - [ ] handle "special characters"
+    - [x] Support for images
+        - [x] return images
     - [ ] "Smart links" -- remap links to find closest match
-    - [ ] Metadata from headers
+    - [ ] Metadata from yaml headers
 - [ ] General Interface
     - [ ] file browser pane
     - [ ] search bar by file name

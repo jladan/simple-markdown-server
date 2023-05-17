@@ -1,7 +1,7 @@
 use std::{
     net::TcpListener,
     io::{Write, BufReader, Read}, 
-    path::{PathBuf, Path}, fs::File, 
+    path::{PathBuf, Path}, fs::File, ffi::OsStr, 
 };
 
 use zettel_web::{
@@ -9,6 +9,8 @@ use zettel_web::{
     response::{self, IntoBytes}, 
     config::Config,
 };
+
+use pulldown_cmark::{Parser, Options, html};
 
 fn main() -> std::io::Result<()> {
     let config = Config::build()
@@ -66,9 +68,15 @@ fn not_found_response(path: &Path) -> http::Response<Vec<u8>> {
 }
 
 fn is_file_response(path: &Path) -> Result<http::Response<Vec<u8>>, std::io::Error> {
-    let file = BufReader::new(File::open(path)?);
-    let contents: Result<Vec<_>, _> = file.bytes().collect();
-    Ok(bytes_response(contents?))
+    let mdext = OsStr::new("md");
+    match path.extension() {
+        Some(e) if e == mdext => markdown_response(path),
+        _ => {
+            let file = BufReader::new(File::open(path)?);
+            let contents: Result<Vec<_>, _> = file.bytes().collect();
+            Ok(bytes_response(contents?))
+        }
+    }
     // Ok(string_response(format!("File Found: {}", path.to_str().unwrap())))
 }
 
@@ -97,3 +105,14 @@ fn respond_hello_world() -> http::Response<Vec<u8>> {
     string_response(String::from("Hello world!"))
 }
 
+fn markdown_response(path: &Path) -> Result<http::Response<Vec<u8>>, std::io::Error> {
+    let mut file = BufReader::new(File::open(path)?);
+    let mut contents: String = String::new();
+    file.read_to_string(&mut contents)?;
+    let parser = Parser::new_ext(&contents, Options::all());
+
+    let mut html_out = String::new();
+    html::push_html(&mut html_out, parser);
+
+    Ok(string_response(html_out))
+}
