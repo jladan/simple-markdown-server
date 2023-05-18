@@ -23,7 +23,7 @@ fn main() -> std::io::Result<()> {
         // Read the stream as a request
         let mut buf_reader = BufReader::new(&stream);
         let req = request::from_bufread(&mut buf_reader);
-        println!("{:#?}", req);
+        // If the request works, then serve it
         if let Ok(req) = req {
             let resp = handle_request(req, &config)?;
             let encoded = resp.into_bytes();
@@ -47,7 +47,7 @@ fn handle_request<T>(req: http::Request<T>, config: &Config) -> Result<http::Res
 
 fn handle_get<T>(req: http::Request<T>, config: &Config) -> Result<http::Response<Vec<u8>>, std::io::Error> {
     let path = PathBuf::from(req.uri().path());
-    let path = PathBuf::from("./").join(path.strip_prefix("/").unwrap());
+    let path = config.rootdir.join(path.strip_prefix("/").unwrap());
     eprintln!("{path:?}");
     if path.is_dir() {
         Ok(is_dir_response(&path))

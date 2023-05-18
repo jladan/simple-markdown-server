@@ -8,12 +8,14 @@ other files will be presented unchanged.
 
 - [ ] Custom configuration 
     - [x] web root and static dir as environment variables
-    - [ ] directory for the zettelkasten
-    - [ ] styling files
-    - [ ] headers and footers
-    - [ ] localhost or 0.0.0.0 (localhost only allows same-computer connections)
-    - [ ] port number
-    - [ ] auto-open browser
+    - [ ] From arguments
+        - [ ] directory for the zettelkasten
+        - [ ] styling files
+        - [ ] headers and footers
+        - [ ] localhost or 0.0.0.0 (localhost only allows same-computer connections)
+        - [ ] port number
+        - [ ] auto-open browser
+    - [ ] Config file support
 - [ ] Web server
     - [x] uri maps to filesystem with ZETTEL_DIR as root
     - [ ] "virtual" filesystem to check for static files (like css)
