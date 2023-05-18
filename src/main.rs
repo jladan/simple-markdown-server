@@ -25,7 +25,7 @@ fn main() -> std::io::Result<()> {
         let req = request::from_bufread(&mut buf_reader);
         println!("{:#?}", req);
         if let Ok(req) = req {
-            let resp = handle_request(req)?;
+            let resp = handle_request(req, &config)?;
             let encoded = resp.into_bytes();
             stream.write_all(&encoded)?;
         } else if let Err(ReqError::IO(e)) = req {
@@ -37,22 +37,22 @@ fn main() -> std::io::Result<()> {
     Ok(())
 }
 
-fn handle_request<T>(req: http::Request<T>) -> Result<http::Response<Vec<u8>>, std::io::Error> {
+fn handle_request<T>(req: http::Request<T>, config: &Config) -> Result<http::Response<Vec<u8>>, std::io::Error> {
     use http::Method;
     match req.method() {
-        &Method::GET => handle_get(req),
+        &Method::GET => handle_get(req, config),
         _ => Ok(response::unimplemented()),
     }
 }
 
-fn handle_get<T>(req: http::Request<T>) -> Result<http::Response<Vec<u8>>, std::io::Error> {
+fn handle_get<T>(req: http::Request<T>, config: &Config) -> Result<http::Response<Vec<u8>>, std::io::Error> {
     let path = PathBuf::from(req.uri().path());
     let path = PathBuf::from("./").join(path.strip_prefix("/").unwrap());
     eprintln!("{path:?}");
     if path.is_dir() {
         Ok(is_dir_response(&path))
     } else if path.is_file() {
-        is_file_response(&path)
+        is_file_response(&path, config)
     } else {
         Ok(not_found_response(&path))
     }
@@ -67,10 +67,10 @@ fn not_found_response(path: &Path) -> http::Response<Vec<u8>> {
         .unwrap()
 }
 
-fn is_file_response(path: &Path) -> Result<http::Response<Vec<u8>>, std::io::Error> {
+fn is_file_response(path: &Path, config: &Config) -> Result<http::Response<Vec<u8>>, std::io::Error> {
     let mdext = OsStr::new("md");
     match path.extension() {
-        Some(e) if e == mdext => markdown_response(path),
+        Some(e) if e == mdext => markdown_response(path, config),
         _ => {
             let file = BufReader::new(File::open(path)?);
             let contents: Result<Vec<_>, _> = file.bytes().collect();
@@ -105,14 +105,27 @@ fn respond_hello_world() -> http::Response<Vec<u8>> {
     string_response(String::from("Hello world!"))
 }
 
-fn markdown_response(path: &Path) -> Result<http::Response<Vec<u8>>, std::io::Error> {
-    let mut file = BufReader::new(File::open(path)?);
+fn markdown_response(path: &Path, config: &Config) -> Result<http::Response<Vec<u8>>, std::io::Error> {
     let mut contents: String = String::new();
-    file.read_to_string(&mut contents)?;
+    {
+        let mut file = BufReader::new(File::open(path)?);
+        file.read_to_string(&mut contents)?;
+    }
+    // Start up parser
     let parser = Parser::new_ext(&contents, Options::all());
-
     let mut html_out = String::new();
+
+    { // Get header
+        let mut file = BufReader::new(File::open(&config.header)?);
+        file.read_to_string(&mut html_out)?;
+    }
+
     html::push_html(&mut html_out, parser);
+
+    { // Add Footer
+        let mut file = BufReader::new(File::open(&config.footer)?);
+        file.read_to_string(&mut html_out)?;
+    }
 
     Ok(string_response(html_out))
 }

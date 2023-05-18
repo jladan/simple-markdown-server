@@ -40,9 +40,9 @@ impl Default for Config {
         Config {
             addr: SocketAddr::from(DEFAULT_ADDR),
             rootdir: PathBuf::from("./"),
-            staticdir: PathBuf::from("./"),
-            header: PathBuf::from("./header.html"),
-            footer: PathBuf::from("./footer.html"),
+            staticdir: PathBuf::from("static"),
+            header: PathBuf::from("header.html"),
+            footer: PathBuf::from("footer.html"),
         }
     }
 }

@@ -16,17 +16,20 @@ other files will be presented unchanged.
     - [ ] auto-open browser
 - [ ] Web server
     - [x] uri maps to filesystem with ZETTEL_DIR as root
+    - [ ] "virtual" filesystem to check for static files (like css)
+    - [ ] show a directory listing for directory requests
+    - [ ] HEAD request support
     - [ ] 404 page properly handled
-        - [ ] return 404 response
+        - [x] return 404 response
         - [ ] include 404 page
         - [ ] probably some help for navigating on a 404
     - [ ] `.md` or `.html` unnecessary
     - [ ] watch for file changes, and auto-refresh page
 - [ ] Document conversion
-    - [ ] Convert `.md` to html automatically
+    - [x] Convert `.md` to html automatically
         - [x] strait conversion
-        - [ ] add header and footer
-        - [ ] handle "special characters"
+        - [x] add header and footer
+        - [x] handle "special characters"
     - [x] Support for images
         - [x] return images
     - [ ] "Smart links" -- remap links to find closest match
