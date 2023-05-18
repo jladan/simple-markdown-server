@@ -70,6 +70,9 @@ impl Resolver<'_> {
         return Resolved::None;
     }
 
+    pub fn config(&self) -> &Config {
+        return self.config;
+    }
 }
 
 fn force_relative(uri: &str) -> PathBuf {

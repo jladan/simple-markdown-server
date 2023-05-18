@@ -1,7 +1,8 @@
 use std::{
     net::TcpListener,
     io::{Write, BufReader, Read}, 
-    path::{PathBuf, Path}, fs::File, ffi::OsStr, 
+    path::Path, 
+    fs::File,
 };
 
 use zettel_web::{
@@ -17,6 +18,7 @@ fn main() -> std::io::Result<()> {
     let config = Config::build()
         .source_env()
         .build();
+    let resolver = Resolver::new(&config);
     let listener = TcpListener::bind(config.addr)?;
 
     for stream in listener.incoming().take(3) {
@@ -26,7 +28,7 @@ fn main() -> std::io::Result<()> {
         let req = request::from_bufread(&mut buf_reader);
         // If the request works, then serve it
         if let Ok(req) = req {
-            let resp = handle_request(req, &config)?;
+            let resp = handle_request(req, &resolver)?;
             let encoded = resp.into_bytes();
             stream.write_all(&encoded)?;
         } else if let Err(ReqError::IO(e)) = req {
@@ -38,29 +40,25 @@ fn main() -> std::io::Result<()> {
     Ok(())
 }
 
-fn handle_request<T>(req: http::Request<T>, config: &Config) -> Result<http::Response<Vec<u8>>, std::io::Error> {
+fn handle_request<T>(req: http::Request<T>, resolver: &Resolver) -> Result<http::Response<Vec<u8>>, std::io::Error> {
     use http::Method;
     match req.method() {
-        &Method::GET => handle_get(req, config),
+        &Method::GET => handle_get(req, resolver),
         _ => Ok(response::unimplemented()),
     }
 }
 
-fn handle_get<T>(req: http::Request<T>, config: &Config) -> Result<http::Response<Vec<u8>>, std::io::Error> {
-    let path = PathBuf::from(req.uri().path());
-    let path = config.rootdir.join(path.strip_prefix("/").unwrap());
-    eprintln!("{path:?}");
-    if path.is_dir() {
-        Ok(is_dir_response(&path))
-    } else if path.is_file() {
-        is_file_response(&path, config)
-    } else {
-        Ok(not_found_response(&path))
+fn handle_get<T>(req: http::Request<T>, resolver: &Resolver) -> Result<http::Response<Vec<u8>>, std::io::Error> {
+    match resolver.lookup(req.uri()) {
+        Resolved::File(path) => file_response(&path),
+        Resolved::Markdown(path) => markdown_response(&path, resolver.config()),
+        Resolved::Directory(path) => Ok(is_dir_response(&path)),
+        Resolved::None => Ok(not_found_response(req.uri().path())),
     }
 }
 
-fn not_found_response(path: &Path) -> http::Response<Vec<u8>> {
-    let content = format!("File not found: {}", path.to_str().unwrap());
+fn not_found_response(path: &str) -> http::Response<Vec<u8>> {
+    let content = format!("File not found: {}", path);
     http::Response::builder()
         .status(404)
         .header("content-length", content.len())
@@ -68,17 +66,10 @@ fn not_found_response(path: &Path) -> http::Response<Vec<u8>> {
         .unwrap()
 }
 
-fn is_file_response(path: &Path, config: &Config) -> Result<http::Response<Vec<u8>>, std::io::Error> {
-    let mdext = OsStr::new("md");
-    match path.extension() {
-        Some(e) if e == mdext => markdown_response(path, config),
-        _ => {
-            let file = BufReader::new(File::open(path)?);
-            let contents: Result<Vec<_>, _> = file.bytes().collect();
-            Ok(bytes_response(contents?))
-        }
-    }
-    // Ok(string_response(format!("File Found: {}", path.to_str().unwrap())))
+fn file_response(path: &Path) -> Result<http::Response<Vec<u8>>, std::io::Error> {
+    let file = BufReader::new(File::open(path)?);
+    let contents: Result<Vec<_>, _> = file.bytes().collect();
+    Ok(bytes_response(contents?))
 }
 
 fn is_dir_response(path: &Path) -> http::Response<Vec<u8>> {
@@ -100,10 +91,6 @@ fn bytes_response(content: Vec<u8>) -> http::Response<Vec<u8>> {
         .body(content)
         .unwrap()
     
-}
-
-fn respond_hello_world() -> http::Response<Vec<u8>> {
-    string_response(String::from("Hello world!"))
 }
 
 fn markdown_response(path: &Path, config: &Config) -> Result<http::Response<Vec<u8>>, std::io::Error> {
