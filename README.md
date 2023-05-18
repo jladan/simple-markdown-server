@@ -18,14 +18,15 @@ other files will be presented unchanged.
     - [ ] Config file support
 - [ ] Web server
     - [x] uri maps to filesystem with ZETTEL_DIR as root
-    - [ ] "virtual" filesystem to check for static files (like css)
+    - [x] "virtual" filesystem to check for static files (like css)
     - [ ] show a directory listing for directory requests
     - [ ] HEAD request support
     - [ ] 404 page properly handled
         - [x] return 404 response
         - [ ] include 404 page
         - [ ] probably some help for navigating on a 404
-    - [ ] `.md` or `.html` unnecessary
+    - [x] `.md` unnecessary
+    - [ ] or `.html` unnecessary
     - [ ] watch for file changes, and auto-refresh page
 - [ ] Document conversion
     - [x] Convert `.md` to html automatically

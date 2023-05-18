@@ -49,7 +49,9 @@ fn handle_request<T>(req: http::Request<T>, resolver: &Resolver) -> Result<http:
 }
 
 fn handle_get<T>(req: http::Request<T>, resolver: &Resolver) -> Result<http::Response<Vec<u8>>, std::io::Error> {
-    match resolver.lookup(req.uri()) {
+    let resource = resolver.lookup(req.uri());
+    eprintln!("Resource Found: {:?}", resource);
+    match resource {
         Resolved::File(path) => file_response(&path),
         Resolved::Markdown(path) => markdown_response(&path, resolver.config()),
         Resolved::Directory(path) => Ok(is_dir_response(&path)),

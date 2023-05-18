@@ -24,6 +24,7 @@ pub struct Resolver<'a> {
     config: &'a Config,
 }
 
+#[derive(Debug)]
 pub enum Resolved {
     File(PathBuf),
     Markdown(PathBuf),
@@ -37,7 +38,7 @@ impl Resolver<'_> {
     }
 
     pub fn lookup(&self, uri: &http::Uri) -> Resolved {
-        let mdext: &OsStr = OsStr::new(".md");
+        let mdext: &OsStr = OsStr::new("md");
         let relpath = force_relative(uri.path());
         // Check under webroot
         let mut path = self.config.rootdir.join(&relpath);
@@ -53,8 +54,9 @@ impl Resolver<'_> {
         // Check with extra markdown extension
         if let Some(fname) = path.file_name() {
             // XXX This would be nicer: path.as_mut_os_string().push(MDEXT);
-            let mut tmp = OsString::with_capacity(fname.len() + mdext.len());
+            let mut tmp = OsString::with_capacity(fname.len() + mdext.len() + 1);
             tmp.push(fname);
+            tmp.push(".");
             tmp.push(mdext);
             path.set_file_name(tmp);
             if path.is_file() {
