@@ -64,6 +64,14 @@ pub fn not_allowed() -> Response<Vec<u8>> {
 }
 
 /// Create a 200 response from a String
+///
+/// Can also be used for other responses, by mutating the status code afterwards, like
+/// ```
+/// use zettel_web::response;
+/// let mut resp = response::from_string(String::from("Not found"));
+/// *resp.status_mut() = http::StatusCode::NOT_FOUND;
+/// assert_eq!(resp.status(), http::StatusCode::NOT_FOUND);
+/// ```
 pub fn from_string(content: String) -> Response<Vec<u8>> {
     Response::builder()
         .status(200)
