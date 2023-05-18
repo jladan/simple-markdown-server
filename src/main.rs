@@ -8,6 +8,7 @@ use zettel_web::{
     request::{self, ReqError},
     response::{self, IntoBytes}, 
     config::Config,
+    uri::{Resolved, Resolver},
 };
 
 use pulldown_cmark::{Parser, Options, html};
