@@ -28,6 +28,13 @@ pub fn handle_get<T>(req: http::Request<T>, resolver: &Resolver) -> Result<Respo
     }
 }
 
+pub fn handle_head<T>(req: http::Request<T>, resolver: &Resolver) -> Result<Response<Vec<u8>>, std::io::Error> {
+    let mut resp = handle_get(req, resolver)?;
+    *resp.body_mut() = Vec::new();
+    return Ok(resp);
+    
+}
+
 // Actual responses to a get request {{{
 
 /// Respond to a missing file

@@ -43,6 +43,7 @@ fn handle_request<T>(req: http::Request<T>, resolver: &Resolver)
     use http::Method;
     match req.method() {
         &Method::GET => handlers::handle_get(req, resolver),
+        &Method::HEAD => handlers::handle_head(req, resolver),
         _ => Ok(response::unimplemented()),
     }
 }
