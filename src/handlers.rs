@@ -23,7 +23,8 @@ pub fn handle_get<T>(req: http::Request<T>, resolver: &Resolver) -> Result<Respo
     match resource {
         Resolved::File(path) => file_response(&path),
         Resolved::Markdown(path) => markdown_response(&path, resolver.config()),
-        Resolved::Directory(path) => Ok(dir_response(&path)),
+        Resolved::Directory(path) => 
+            Ok(dir_response(&path, req.headers().get("accept"))),
         Resolved::None => Ok(not_found_response(req.uri().path())),
     }
 }
@@ -35,7 +36,7 @@ pub fn handle_head<T>(req: http::Request<T>, resolver: &Resolver) -> Result<Resp
     
 }
 
-// Actual responses to a get request {{{
+// Actual responses to a get request 
 
 /// Respond to a missing file
 fn not_found_response(path: &str) -> Response<Vec<u8>> {
@@ -53,8 +54,21 @@ fn file_response(path: &Path) -> Result<Response<Vec<u8>>, std::io::Error> {
 }
 
 /// Response for a found directory
-fn dir_response(path: &Path) -> Response<Vec<u8>> {
-    response::from_string(format!("Directory found: {}", path.to_str().unwrap()))
+fn dir_response(path: &Path, t: Option<&http::HeaderValue>) -> Response<Vec<u8>> {
+    if let Some(t) = t {
+        if t.to_str().unwrap().contains(&"application/json") {
+            return dir_json(path);
+        }
+    }
+    return dir_html(path);
+}
+
+fn dir_html(path: &Path) -> Response<Vec<u8>> {
+    response::from_string(format!("hTML Directory found: {}", path.to_str().unwrap()))
+}
+
+fn dir_json(path: &Path) -> Response<Vec<u8>> {
+    response::from_string(format!("JSOn Directory found: {}", path.to_str().unwrap()))
 }
 
 /// Convert a markdown document into an HTML response
@@ -83,4 +97,4 @@ fn markdown_response(path: &Path, config: &Config) -> Result<Response<Vec<u8>>, 
     Ok(response::from_string(html_out))
 }
 
-// }}}
+// 
