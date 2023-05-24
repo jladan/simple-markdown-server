@@ -15,6 +15,7 @@ use crate::{
     uri::{Resolved, Resolver},
 };
 
+mod directory;
 
 
 pub fn handle_get<T>(req: http::Request<T>, resolver: &Resolver) -> Result<Response<Vec<u8>>, std::io::Error> {
