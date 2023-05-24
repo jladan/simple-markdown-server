@@ -63,6 +63,14 @@ pub fn not_allowed() -> Response<Vec<u8>> {
         .unwrap()
 }
 
+/// If any error occurs on the server side
+pub fn server_error() -> Response<Vec<u8>> {
+    Response::builder()
+        .status(500)
+        .body(Vec::new())
+        .unwrap()
+}
+
 /// Create a 200 response from a String
 ///
 /// Can also be used for other responses, by mutating the status code afterwards, like

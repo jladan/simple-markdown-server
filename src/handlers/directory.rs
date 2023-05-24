@@ -48,6 +48,16 @@ impl TryFrom<fs::DirEntry> for Entry {
     }
 }
 
+pub fn get_html(path: &Path) -> io::Result<String> {
+    let entries = read_contents(path)?;
+    return Ok(to_html(entries));
+}
+
+pub fn get_json(path: &Path) -> io::Result<String> {
+    let entries = read_contents(path)?;
+    return Ok(serde_json::to_string(&entries).expect("Problem in serializing json"));
+}
+
 
 fn read_contents(path: &Path) -> std::io::Result<Vec<Entry>> {
     let mut ret: std::io::Result<Vec<Entry>> = path.read_dir()?

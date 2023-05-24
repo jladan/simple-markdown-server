@@ -4,7 +4,7 @@ use http::StatusCode;
 use pulldown_cmark::{Parser, Options, html};
 
 use std::{
-    io::{BufReader, Read}, 
+    io::{self, BufReader, Read}, 
     path::Path, 
     fs::File,
 };
@@ -65,11 +65,19 @@ fn dir_response(path: &Path, t: Option<&http::HeaderValue>) -> Response<Vec<u8>>
 }
 
 fn dir_html(path: &Path) -> Response<Vec<u8>> {
-    response::from_string(format!("hTML Directory found: {}", path.to_str().unwrap()))
+    if let Ok(s) = directory::get_html(path) {
+        response::from_string(s)
+    } else {
+        response::server_error()
+    }
 }
 
 fn dir_json(path: &Path) -> Response<Vec<u8>> {
-    response::from_string(format!("JSOn Directory found: {}", path.to_str().unwrap()))
+    if let Ok(s) = directory::get_json(path) {
+        response::from_string(s)
+    } else {
+        response::server_error()
+    }
 }
 
 /// Convert a markdown document into an HTML response
