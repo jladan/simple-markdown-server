@@ -1,71 +1,72 @@
-use http::header::ToStrError;
 
-pub trait AsBytes {
-    fn as_bytes(self) -> Result<Vec<u8>, ResError>;
+pub trait IntoBytes {
+    fn into_bytes(self) -> Vec<u8>;
     
 }
 
-impl AsBytes for http::Response<String> {
-    fn as_bytes(self) -> Result<Vec<u8>, ResError> {
-        to_string(self).map(|r| r.into_bytes())
+impl IntoBytes for http::Response<String> {
+    fn into_bytes(self) -> Vec<u8> {
+        let (parts, body) = self.into_parts();
+        let h = encode_header(parts);
+        return [h, b"\r\n".to_vec(), body.into_bytes()].concat();
     }
 }
 
-impl AsBytes for http::Response<()> {
-    fn as_bytes(self) -> Result<Vec<u8>, ResError> {
-        todo!()
+impl IntoBytes for http::Response<Vec<u8>> {
+    fn into_bytes(self) -> Vec<u8> {
+        let (parts, body) = self.into_parts();
+        let h = encode_header(parts);
+        return [h, b"\r\n".to_vec(), body].concat();
+    }
+}
+
+impl IntoBytes for http::Response<()> {
+    fn into_bytes(self) -> Vec<u8> {
+        let (parts, _) = self.into_parts();
+        encode_header(parts)
     }
 }
 
 
 
 /// Create an "unimplemented" response for unimplemented requests
-pub fn unimplemented() -> http::Response<String> {
+pub fn unimplemented() -> http::Response<Vec<u8>> {
     http::Response::builder()
         .status(501)
-        .body(String::new())
+        .body(Vec::new())
         .unwrap()
 }
 
 /// A "not allowed" response for recognized, but not allowed for the resource
-pub fn not_allowed() -> http::Response<String> {
+pub fn not_allowed() -> http::Response<Vec<u8>> {
     http::Response::builder()
         .status(405)
-        .body(String::new())
+        .body(Vec::new())
         .unwrap()
 }
 
-/// Convert a full response to a string for sending to the client
-pub fn to_string(resp: http::Response<String>) -> Result<String, ResError> {
-    let mut encoded = String::new();
-    let (parts, body) = resp.into_parts();
-    encoded.push_str(&statusline(&parts)?);
-    for (k, v) in parts.headers.iter() {
-        encoded.push_str(&format!("{}: {}\r\n", k, v.to_str()?));
-    }
-    encoded.push_str(&format!("\r\n{body}"));
 
-    Ok(encoded)
+/// Encode a response header
+pub fn encode_header(parts: http::response::Parts) -> Vec<u8> {
+    let mut lines: Vec<Vec<u8>> = Vec::new();
+    lines.push(statusline(&parts));
+    for (k, v) in parts.headers.iter() {
+        lines.push(headerline(k, v))
+    }
+    return lines.concat();
 }
 
 /// Create the status line for a response
-fn statusline(parts: &http::response::Parts) -> Result<String, ResError> {
+fn statusline(parts: &http::response::Parts) -> Vec<u8> {
     let status_code = parts.status;
-   Ok(format!("{:?} {} {}\r\n", 
-              parts.version, 
-              status_code.as_str(), 
-              status_code.canonical_reason().expect("No canonical reason phrase")))
+    format!("{:?} {} {}\r\n", 
+            parts.version, 
+            status_code.as_str(), 
+            status_code.canonical_reason().expect("No canonical reason phrase"))
+        .into_bytes()
 }
 
-#[derive(Debug)]
-pub enum ResError {
-    Unimplemented,
-    Encoding(ToStrError),
+/// Create a headerline from parts
+fn headerline(k: &http::HeaderName, v: &http::HeaderValue) -> Vec<u8> {
+    [ k.as_str().as_bytes(), b": ", v.as_bytes(), b"\r\n", ].concat()
 }
-
-impl From<ToStrError> for ResError {
-    fn from(value: ToStrError) -> Self {
-        ResError::Encoding(value)
-    }
-}
-

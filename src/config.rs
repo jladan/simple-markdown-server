@@ -3,11 +3,14 @@
 
 use std::{
     env,
-    path::{PathBuf, Path},
+    path::{PathBuf, Path}, 
+    net::{SocketAddr, IpAddr},
 };
 
 const ROOTDIR_KEY: &str = "web_root";
 const STATICDIR_KEY: &str = "static_dir";
+
+const DEFAULT_ADDR: ([u8; 4], u16)  = ([0,0,0,0], 7878);
 
 /// The config object to handle how pages are served
 ///
@@ -22,11 +25,20 @@ pub struct Config {
     pub staticdir: PathBuf,
     pub header: PathBuf,
     pub footer: PathBuf,
+    pub addr: SocketAddr,
+}
+
+impl Config {
+    pub fn build() -> ConfigBuilder {
+        ConfigBuilder::new()
+    }
+    
 }
 
 impl Default for Config {
     fn default() -> Config {
         Config {
+            addr: SocketAddr::from(DEFAULT_ADDR),
             rootdir: PathBuf::from("./"),
             staticdir: PathBuf::from("./"),
             header: PathBuf::from("./header.html"),
@@ -45,6 +57,7 @@ pub struct ConfigBuilder {
     staticdir: PathBuf,
     header: PathBuf,
     footer: PathBuf,
+    addr: SocketAddr,
 }
 
 impl ConfigBuilder {
@@ -56,6 +69,7 @@ impl ConfigBuilder {
             staticdir: config.staticdir,
             header: config.header,
             footer: config.footer,
+            addr: config.addr,
         }
     }
     
@@ -68,6 +82,7 @@ impl ConfigBuilder {
             staticdir: self.staticdir,
             header,
             footer,
+            addr: self.addr,
         }
     }
 
@@ -109,12 +124,30 @@ impl ConfigBuilder {
         self
     }
 
+    pub fn set_address<T>(mut self, addr: T) -> ConfigBuilder 
+        where SocketAddr: From<T> {
+            self.addr = SocketAddr::from(addr);
+            self
+        }
+
+    pub fn set_ip<T>(mut self, new_ip: T) -> ConfigBuilder
+        where IpAddr: From<T> {
+            self.addr.set_ip(IpAddr::from(new_ip));
+            self
+        }
+
+    pub fn set_port(mut self, new_port: u16) -> ConfigBuilder {
+            self.addr.set_port(new_port);
+            self
+        }
+
 }
 
 
 #[cfg(test)]
 mod tests {
     extern crate scopeguard;
+
     use super::*;
 
     #[test]
@@ -179,6 +212,33 @@ mod tests {
             .build();
         assert_ne!(PathBuf::from("static/footer.html"), built.footer);
         assert_eq!(PathBuf::from("/footer.html"), built.footer);
+    }
+
+    #[test]
+    fn builder_sets_addr_tuple() {
+        let addr_source = ([1,1,1,1], 8080);
+        let built = Config::build()
+            .set_address(addr_source)
+            .build();
+        assert_eq!(built.addr, SocketAddr::from(addr_source))
+    }
+
+    #[test]
+    fn builder_sets_ip() {
+        let addr_source = ([1,1,1,1], 8080);
+        let built = Config::build()
+            .set_ip(addr_source.0)
+            .build();
+        assert_eq!(built.addr.ip(), SocketAddr::from(addr_source).ip())
+    }
+
+    #[test]
+    fn builder_sets_port() {
+        let addr_source = ([1,1,1,1], 8080);
+        let built = Config::build()
+            .set_port(addr_source.1)
+            .build();
+        assert_eq!(built.addr.port(), SocketAddr::from(addr_source).port())
     }
 
     mod env_tests {
