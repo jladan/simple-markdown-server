@@ -4,10 +4,9 @@ use std::{
 };
 
 use zettel_web::{
-    handlers,
+    handlers::Handler,
     request::{self, ReqError},
-    response::{self, Response, IntoBytes}, 
-    uri::Resolver,
+    response::IntoBytes, 
     config::Config,
 };
 
@@ -16,8 +15,8 @@ fn main() -> std::io::Result<()> {
     let config = Config::build()
         .source_env()
         .build();
-    let resolver = Resolver::new(&config);
     let listener = TcpListener::bind(config.addr)?;
+    let handler: Handler = Handler::new(config);
 
     for stream in listener.incoming() {
         let mut stream = stream.unwrap();
@@ -27,7 +26,7 @@ fn main() -> std::io::Result<()> {
         // If the request works, then serve it
         if let Ok(req) = req {
             eprintln!("{req:#?}");
-            let resp = handle_request(req, &resolver)?;
+            let resp = handler.handle_request(req)?;
             let encoded = resp.into_bytes();
             stream.write_all(&encoded)?;
         } else if let Err(ReqError::IO(e)) = req {
@@ -39,12 +38,3 @@ fn main() -> std::io::Result<()> {
     Ok(())
 }
 
-fn handle_request<T>(req: http::Request<T>, resolver: &Resolver) 
-        -> Result<Response<Vec<u8>>, std::io::Error> {
-    use http::Method;
-    match req.method() {
-        &Method::GET => handlers::handle_get(req, resolver),
-        &Method::HEAD => handlers::handle_head(req, resolver),
-        _ => Ok(response::unimplemented()),
-    }
-}

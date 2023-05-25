@@ -20,8 +20,9 @@ use std::{
 use crate::config::Config;
 
 
-pub struct Resolver<'a> {
-    config: &'a Config,
+pub struct Resolver {
+    rootdir: PathBuf,
+    staticdir: PathBuf,
 }
 
 #[derive(Debug)]
@@ -32,16 +33,16 @@ pub enum Resolved {
     None,
 }
 
-impl Resolver<'_> {
+impl Resolver {
     pub fn new(config: &Config) -> Resolver {
-        Resolver { config }
+        Resolver { staticdir: config.staticdir.clone(), rootdir: config.rootdir.clone() }
     }
 
     pub fn lookup(&self, uri: &http::Uri) -> Resolved {
         let mdext: &OsStr = OsStr::new("md");
         let relpath = force_relative(uri.path());
         // Check under webroot
-        let mut path = self.config.rootdir.join(&relpath);
+        let mut path = self.rootdir.join(&relpath);
         if path.is_dir() {
             return Resolved::Directory(path);
         } else if path.is_file() {
@@ -64,7 +65,7 @@ impl Resolver<'_> {
             }
         }
         // Look in staticdir
-        let path = self.config.staticdir.join(&relpath);
+        let path = self.staticdir.join(&relpath);
         if path.is_file() {
             return Resolved::File(path);
         }
@@ -72,9 +73,6 @@ impl Resolver<'_> {
         return Resolved::None;
     }
 
-    pub fn config(&self) -> &Config {
-        return self.config;
-    }
 }
 
 fn force_relative(uri: &str) -> PathBuf {

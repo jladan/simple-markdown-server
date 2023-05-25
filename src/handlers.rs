@@ -17,6 +17,47 @@ use crate::{
 
 mod directory;
 
+pub struct Handler {
+    config: Config,
+    resolver: Resolver,
+}
+
+impl Handler {
+    pub fn new(config: Config) -> Handler {
+        let resolver = Resolver::new(&config);
+        Handler {config, resolver}
+    }
+
+    pub fn handle_request<T>(&self, req: http::Request<T>) 
+        -> Result<Response<Vec<u8>>, std::io::Error> {
+            use http::Method;
+            match req.method() {
+                &Method::GET => self.handle_get(req),
+                &Method::HEAD => self.handle_head(req),
+                _ => Ok(response::unimplemented()),
+            }
+        }
+    pub fn handle_get<T>(&self, req: http::Request<T>) -> Result<Response<Vec<u8>>, std::io::Error> {
+        let resource = self.resolver.lookup(req.uri());
+        let accepts = preferred_format(&req.headers());
+        eprintln!("Resource Found: {:?}", resource);
+        match resource {
+            Resolved::File(path) => file_response(&path),
+            Resolved::Markdown(path) => markdown_response(&path, &self.config),
+            Resolved::Directory(path) => 
+                Ok(dir_response(&path, accepts, &self.config)),
+            Resolved::None => Ok(not_found_response(req.uri().path())),
+        }
+    }
+
+    pub fn handle_head<T>(&self, req: http::Request<T>) -> Result<Response<Vec<u8>>, std::io::Error> {
+        let mut resp = self.handle_get(req)?;
+        *resp.body_mut() = Vec::new();
+        return Ok(resp);
+    }
+
+}
+
 enum AcceptFormat {
     Html,
     Json,
@@ -40,26 +81,6 @@ fn preferred_format(headers: &http::HeaderMap) -> Vec<AcceptFormat> {
     } else {
         vec![AcceptFormat::Any]
     }
-}
-
-pub fn handle_get<T>(req: http::Request<T>, resolver: &Resolver) -> Result<Response<Vec<u8>>, std::io::Error> {
-    let resource = resolver.lookup(req.uri());
-    let accepts = preferred_format(&req.headers());
-    eprintln!("Resource Found: {:?}", resource);
-    match resource {
-        Resolved::File(path) => file_response(&path),
-        Resolved::Markdown(path) => markdown_response(&path, resolver.config()),
-        Resolved::Directory(path) => 
-            Ok(dir_response(&path, accepts, resolver.config())),
-        Resolved::None => Ok(not_found_response(req.uri().path())),
-    }
-}
-
-pub fn handle_head<T>(req: http::Request<T>, resolver: &Resolver) -> Result<Response<Vec<u8>>, std::io::Error> {
-    let mut resp = handle_get(req, resolver)?;
-    *resp.body_mut() = Vec::new();
-    return Ok(resp);
-    
 }
 
 // Actual responses to a get request {{{
