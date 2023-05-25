@@ -50,7 +50,7 @@ pub fn handle_get<T>(req: http::Request<T>, resolver: &Resolver) -> Result<Respo
         Resolved::File(path) => file_response(&path),
         Resolved::Markdown(path) => markdown_response(&path, resolver.config()),
         Resolved::Directory(path) => 
-            Ok(dir_response(&path, accepts)),
+            Ok(dir_response(&path, accepts, resolver.config())),
         Resolved::None => Ok(not_found_response(req.uri().path())),
     }
 }
@@ -80,32 +80,50 @@ fn file_response(path: &Path) -> Result<Response<Vec<u8>>, std::io::Error> {
 }
 
 /// Response for a found directory
-fn dir_response(path: &Path, accepts: Vec<AcceptFormat>) -> Response<Vec<u8>> {
+fn dir_response(path: &Path, accepts: Vec<AcceptFormat>, config: &Config) -> Response<Vec<u8>> {
     for af in accepts {
         match af {
-            AcceptFormat::Json => return dir_json(path),
-            AcceptFormat::Html => return dir_html(path),
-            AcceptFormat::Any => return dir_html(path),
+            AcceptFormat::Json => return dir_json(path, config),
+            AcceptFormat::Html => return dir_html(path, config),
+            AcceptFormat::Any => return dir_html(path, config),
         }
     }
     // Apparently no preferences?
-    return dir_html(path);
+    return dir_html(path, config);
 }
 
-fn dir_html(path: &Path) -> Response<Vec<u8>> {
+fn dir_html(path: &Path, config: &Config) -> Response<Vec<u8>> {
     if let Ok(s) = directory::get_html(path) {
-        response::from_string(s)
-    } else {
-        response::server_error()
+        if let Ok(wrapped) = wrap_html(s, config) {
+            return response::from_string(wrapped);
+        }
     }
+    return response::server_error()
 }
 
-fn dir_json(path: &Path) -> Response<Vec<u8>> {
+fn dir_json(path: &Path, _config: &Config) -> Response<Vec<u8>> {
     if let Ok(s) = directory::get_json(path) {
         response::from_string(s)
     } else {
         response::server_error()
     }
+}
+
+fn wrap_html(contents: String, config: &Config) -> io::Result<String> {
+    let mut html_out = String::new();
+    { // Get header
+        let mut file = BufReader::new(File::open(&config.header)?);
+        file.read_to_string(&mut html_out)?;
+    }
+
+    html_out.push_str(&contents);
+
+    { // Add Footer
+        let mut file = BufReader::new(File::open(&config.footer)?);
+        file.read_to_string(&mut html_out)?;
+    }
+
+    Ok(html_out)
 }
 
 /// Convert a markdown document into an HTML response
