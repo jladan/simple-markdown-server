@@ -17,6 +17,9 @@ use std::{
     ffi::{OsStr, OsString},
 };
 
+use url_escape::decode as decode_url;
+
+
 use crate::config::Config;
 
 
@@ -40,7 +43,7 @@ impl Resolver {
 
     pub fn lookup(&self, uri: &http::Uri) -> Resolved {
         let mdext: &OsStr = OsStr::new("md");
-        let relpath = force_relative(uri.path());
+        let relpath = force_relative(&decode_url(uri.path()));
         // Check under webroot
         let mut path = self.rootdir.join(&relpath);
         if path.is_dir() {
