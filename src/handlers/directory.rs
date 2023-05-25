@@ -20,6 +20,18 @@ enum Entry {
     Other(PathBuf),
 }
 
+impl Entry {
+    fn strip_prefix(self, base: &Path) -> Option<Self> {
+        match self {
+            Self::Dir(p) => p.strip_prefix(base).ok().map(|p| Self::Dir(p.to_path_buf())),
+            Self::File(p) => p.strip_prefix(base).ok().map(|p| Self::File(p.to_path_buf())),
+            Self::Link(p) => p.strip_prefix(base).ok().map(|p| Self::Link(p.to_path_buf())),
+            Self::Other(p) => p.strip_prefix(base).ok().map(|p| Self::Other(p.to_path_buf())),
+        }
+    }
+
+}
+
 // XXX This try-from is required because read_dir returns Result<DirEntry>
 impl TryFrom<io::Result<fs::DirEntry>> for Entry {
     type Error = io::Error;
@@ -58,10 +70,20 @@ pub fn get_json(path: &Path) -> io::Result<String> {
     return Ok(serde_json::to_string(&entries).expect("Problem in serializing json"));
 }
 
+fn lift<T, E>(r: Result<Option<T>, E>) -> Option<Result<T, E>> {
+    match r {
+        Ok(Some(inner)) => Some(Ok(inner)),
+        Ok(None) => None,
+        Err(e) => Some(Err(e)),
+    }
+}
 
-fn read_contents(path: &Path) -> std::io::Result<Vec<Entry>> {
-    let mut ret: std::io::Result<Vec<Entry>> = path.read_dir()?
+fn read_contents(path: &Path) -> io::Result<Vec<Entry>> {
+    let mut ret: io::Result<Vec<Entry>> = path.read_dir()?
         .map(|e| Entry::try_from(e))
+        // XXX any failure to strip prefix throws the entry away
+        .map(|r| r.map(|e| e.strip_prefix(&path)))
+        .filter_map(|r| lift(r))
         .collect();
     match ret.as_mut() {
         Ok(entries) => entries.sort(),
