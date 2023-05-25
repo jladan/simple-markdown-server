@@ -26,6 +26,7 @@ fn main() -> std::io::Result<()> {
         let req = request::from_bufread(&mut buf_reader);
         // If the request works, then serve it
         if let Ok(req) = req {
+            eprintln!("{req:#?}");
             let resp = handle_request(req, &resolver)?;
             let encoded = resp.into_bytes();
             stream.write_all(&encoded)?;
