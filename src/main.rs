@@ -1,10 +1,13 @@
 use std::{
     net::{SocketAddr, TcpListener}, 
-    io::{Write, BufReader, BufRead}, 
+    io::{Write, BufReader}, 
+    path::{PathBuf, Path}, 
 };
 
-use http::header::ToStrError;
-use zettel_web::request::{self, ReqError};
+use zettel_web::{
+    request::{self, ReqError},
+    response::{self, AsBytes},
+};
 
 fn main() -> std::io::Result<()> {
     let addr = SocketAddr::from(([0,0,0,0], 7878));
@@ -17,12 +20,12 @@ fn main() -> std::io::Result<()> {
         let mut buf_reader = BufReader::new(&stream);
         let req = request::from_bufread(&mut buf_reader);
         println!("{:#?}", req);
-        if let Ok(_req) = req {
-            let encoded = response_to_bytes(respond_hello_world()).unwrap();
-            println!("{}", encoded);
-            stream.write_all(&encoded.as_bytes())?;
+        if let Ok(req) = req {
+            let resp = handle_request(req);
+            let encoded = resp.as_bytes().unwrap();
+            stream.write_all(&encoded)?;
         } else if let Err(ReqError::IO(e)) = req {
-                return Err(e);
+            return Err(e);
         }
 
     }
@@ -30,42 +33,53 @@ fn main() -> std::io::Result<()> {
     Ok(())
 }
 
-fn response_to_bytes(resp: http::Response<String>) -> Result<String, ResError> {
-    use http::StatusCode;
-    let mut encoded = String::new();
-    let (parts, body) = resp.into_parts();
-    let status_code = match parts.status {
-        StatusCode::OK => Ok("200 OK"),
-        StatusCode::NOT_FOUND => Ok("404 NOT FOUND"),
-        _ => Err(ResError::Unimplemented)
-    }?;
-    encoded.push_str(&format!("{:?} {status_code}\r\n", parts.version));
-    for (k, v) in parts.headers.iter() {
-        encoded.push_str(&format!("{}: {}\r\n", k, v.to_str()?));
+fn handle_request(req: http::Request<String>) -> http::Response<String> {
+    use http::Method;
+    match req.method() {
+        &Method::GET => handle_get(req),
+        _ => response::unimplemented(),
     }
-    encoded.push_str(&format!("\r\n{body}"));
-
-    Ok(encoded)
 }
 
-fn respond_hello_world() -> http::Response<String> {
-    let content = String::from("Hello world");
+fn handle_get(req: http::Request<String>) -> http::Response<String> {
+    let path = PathBuf::from(req.uri().path());
+    let path = PathBuf::from("./").join(path.strip_prefix("/").unwrap());
+    eprintln!("{path:?}");
+    if path.is_dir() {
+        is_dir_response(&path)
+    } else if path.is_file() {
+        is_file_response(&path)
+    } else {
+        not_found_response(&path)
+    }
+}
+
+fn not_found_response(path: &Path) -> http::Response<String> {
+    let content = format!("File not found: {}", path.to_str().unwrap());
     http::Response::builder()
-        .status(200)
-        .header("Content-Length", content.len())
-        .body(String::from("Hello World"))
+        .status(404)
+        .header("content-length", content.len())
+        .body(content)
         .unwrap()
 }
 
-#[derive(Debug)]
-enum ResError {
-    Unimplemented,
-    Encoding(ToStrError),
+fn is_file_response(path: &Path) -> http::Response<String> {
+    string_response(format!("File Found: {}", path.to_str().unwrap()))
 }
 
-impl From<ToStrError> for ResError {
-    fn from(value: ToStrError) -> Self {
-        ResError::Encoding(value)
-    }
+fn is_dir_response(path: &Path) -> http::Response<String> {
+    string_response(format!("Directory found: {}", path.to_str().unwrap()))
+}
+
+fn string_response(content: String) -> http::Response<String> {
+    http::Response::builder()
+        .status(200)
+        .header("Content-Length", content.len())
+        .body(content)
+        .unwrap()
+}
+
+fn respond_hello_world() -> http::Response<String> {
+    string_response(String::from("Hello world!"))
 }
 
