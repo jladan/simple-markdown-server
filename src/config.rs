@@ -7,8 +7,8 @@ use std::{
     net::{SocketAddr, IpAddr},
 };
 
-const ROOTDIR_KEY: &str = "web_root";
-const STATICDIR_KEY: &str = "static_dir";
+const ROOTDIR_KEY: &str = "WEB_ROOT";
+const STATICDIR_KEY: &str = "STATIC_DIR";
 
 const DEFAULT_ADDR: ([u8; 4], u16)  = ([0,0,0,0], 7878);
 
@@ -40,9 +40,9 @@ impl Default for Config {
         Config {
             addr: SocketAddr::from(DEFAULT_ADDR),
             rootdir: PathBuf::from("./"),
-            staticdir: PathBuf::from("./"),
-            header: PathBuf::from("./header.html"),
-            footer: PathBuf::from("./footer.html"),
+            staticdir: PathBuf::from("static"),
+            header: PathBuf::from("header.html"),
+            footer: PathBuf::from("footer.html"),
         }
     }
 }
@@ -92,9 +92,11 @@ impl ConfigBuilder {
     /// staticdir sourced from "STATIC_DIR"
     pub fn source_env(mut self) -> Self {
         if let Some(rootdir) = env::var_os(ROOTDIR_KEY) {
+            eprintln!("rootdir found as {:?}", rootdir);
             self.rootdir = PathBuf::from(rootdir);
         }
         if let Some(static_dir) = env::var_os(STATICDIR_KEY) {
+            eprintln!("static dir found as {:?}", static_dir);
             self.staticdir = PathBuf::from(static_dir);
         }
         self
