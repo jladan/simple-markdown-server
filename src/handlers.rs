@@ -15,17 +15,26 @@ use crate::{
     uri::{Resolved, Resolver},
 };
 
+// templating using Tera for the markdown handler
+extern crate tera;
+use tera::Tera;
+
+const MARKDOWN_TEMPLATE: &str = "markdown.html";
+
 mod directory;
 
 pub struct Handler {
     config: Config,
     resolver: Resolver,
+    tera: Tera,
 }
 
 impl Handler {
     pub fn new(config: Config) -> Handler {
         let resolver = Resolver::new(&config);
-        Handler {config, resolver}
+        let template_glob = config.template_dir.join("**/*.html");
+        let tera = Tera::new(&template_glob.to_str().unwrap()).expect("Error parsing template");
+        Handler {config, resolver, tera}
     }
 
     pub fn handle_request<T>(&self, req: http::Request<T>) 
@@ -43,7 +52,7 @@ impl Handler {
         eprintln!("Resource Found: {:?}", resource);
         match resource {
             Resolved::File(path) => file_response(&path),
-            Resolved::Markdown(path) => markdown_response(&path, &self.config),
+            Resolved::Markdown(path) => markdown_response(&path, &self.config, &self.tera),
             Resolved::Directory(path) => 
                 Ok(dir_response(&path, accepts, &self.config)),
             Resolved::None => Ok(not_found_response(req.uri().path())),
@@ -148,28 +157,23 @@ fn wrap_html(contents: String, config: &Config) -> io::Result<String> {
 }
 
 /// Convert a markdown document into an HTML response
-fn markdown_response(path: &Path, config: &Config) -> Result<Response<Vec<u8>>, std::io::Error> {
+fn markdown_response(path: &Path, config: &Config, tera: &Tera) -> Result<Response<Vec<u8>>, std::io::Error> {
+    // Load the markdown
     let mut contents: String = String::new();
     {
         let mut file = BufReader::new(File::open(path)?);
         file.read_to_string(&mut contents)?;
     }
-    // Start up parser
+    // Parse the markdown
     let parser = Parser::new_ext(&contents, Options::all());
     let mut html_out = String::new();
-
-    { // Get header
-        let mut file = BufReader::new(File::open(&config.header)?);
-        file.read_to_string(&mut html_out)?;
-    }
-
     html::push_html(&mut html_out, parser);
 
-    { // Add Footer
-        let mut file = BufReader::new(File::open(&config.footer)?);
-        file.read_to_string(&mut html_out)?;
-    }
-
+    // Apply the template
+    use tera::Context;
+    let mut context = Context::new();
+    context.insert("content", &html_out);
+    let html_out = tera.render(MARKDOWN_TEMPLATE, &context).expect("Template didn't work");
     Ok(response::from_string(html_out))
 }
 

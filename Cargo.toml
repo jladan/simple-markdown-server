@@ -9,12 +9,12 @@ edition = "2021"
 # hyper = { version = "0.14", features = ["full"] }
 pulldown-cmark = { version = "0.9.2", default-features = false }
 threadpool = "1.8.1"
-# futures = "0.3"
 http = "0.2.9"
 httparse = "1.8.0"
 serde_json = "1.0.96"
 serde = { version = "1.0.163", features = ["derive"] }
 url-escape = "0.1.1"
+tera = { version = "1" }
 
 [dev-dependencies]
 scopeguard = "1.1.0"

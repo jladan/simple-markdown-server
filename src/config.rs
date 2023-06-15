@@ -9,6 +9,7 @@ use std::{
 
 const ROOTDIR_KEY: &str = "WEB_ROOT";
 const STATICDIR_KEY: &str = "STATIC_DIR";
+const TEMPLATEDIR_KEY: &str = "TEMPLATE_DIR";
 
 const DEFAULT_ADDR: ([u8; 4], u16)  = ([0,0,0,0], 7878);
 
@@ -23,6 +24,7 @@ const DEFAULT_ADDR: ([u8; 4], u16)  = ([0,0,0,0], 7878);
 pub struct Config {
     pub rootdir: PathBuf,
     pub staticdir: PathBuf,
+    pub template_dir: PathBuf,
     pub header: PathBuf,
     pub footer: PathBuf,
     pub addr: SocketAddr,
@@ -41,6 +43,7 @@ impl Default for Config {
             addr: SocketAddr::from(DEFAULT_ADDR),
             rootdir: PathBuf::from("./"),
             staticdir: PathBuf::from("static"),
+            template_dir: PathBuf::from("templates/**/*.html"),
             header: PathBuf::from("header.html"),
             footer: PathBuf::from("footer.html"),
         }
@@ -55,6 +58,7 @@ impl Default for Config {
 pub struct ConfigBuilder {
     rootdir: PathBuf,
     staticdir: PathBuf,
+    template_dir: PathBuf,
     header: PathBuf,
     footer: PathBuf,
     addr: SocketAddr,
@@ -67,6 +71,7 @@ impl ConfigBuilder {
         ConfigBuilder { 
             rootdir: config.rootdir,
             staticdir: config.staticdir,
+            template_dir: config.template_dir,
             header: config.header,
             footer: config.footer,
             addr: config.addr,
@@ -80,6 +85,7 @@ impl ConfigBuilder {
         Config {
             rootdir: self.rootdir,
             staticdir: self.staticdir,
+            template_dir: self.template_dir,
             header,
             footer,
             addr: self.addr,
@@ -98,6 +104,10 @@ impl ConfigBuilder {
         if let Some(static_dir) = env::var_os(STATICDIR_KEY) {
             eprintln!("static dir found as {:?}", static_dir);
             self.staticdir = PathBuf::from(static_dir);
+        }
+        if let Some(template_dir) = env::var_os(TEMPLATEDIR_KEY) {
+            eprintln!("template dir found as {:?}", template_dir);
+            self.template_dir = PathBuf::from(template_dir);
         }
         self
     }
