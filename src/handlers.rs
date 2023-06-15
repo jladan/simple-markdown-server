@@ -4,7 +4,7 @@ use http::StatusCode;
 use pulldown_cmark::{Parser, Options, html};
 
 use std::{
-    io::{self, BufReader, Read}, 
+    io::{BufReader, Read}, 
     path::Path, 
     fs::File,
 };
@@ -52,9 +52,9 @@ impl Handler {
         eprintln!("Resource Found: {:?}", resource);
         match resource {
             Resolved::File(path) => file_response(&path),
-            Resolved::Markdown(path) => markdown_response(&path, &self.config, &self.tera),
+            Resolved::Markdown(path) => markdown_response(&path, &self.tera),
             Resolved::Directory(path) => 
-                Ok(dir_response(&path, accepts, &self.config)),
+                Ok(dir_response(&path, accepts, &self.config, &self.tera)),
             Resolved::None => Ok(not_found_response(req.uri().path())),
         }
     }
@@ -110,22 +110,25 @@ fn file_response(path: &Path) -> Result<Response<Vec<u8>>, std::io::Error> {
 }
 
 /// Response for a found directory
-fn dir_response(path: &Path, accepts: Vec<AcceptFormat>, config: &Config) -> Response<Vec<u8>> {
+fn dir_response(path: &Path, accepts: Vec<AcceptFormat>, config: &Config, tera: &Tera) -> Response<Vec<u8>> {
     for af in accepts {
         match af {
             AcceptFormat::Json => return dir_json(path, config),
-            AcceptFormat::Html => return dir_html(path, config),
-            AcceptFormat::Any => return dir_html(path, config),
+            AcceptFormat::Html => return dir_html(path, tera),
+            AcceptFormat::Any => return dir_html(path, tera),
         }
     }
     // Apparently no preferences?
-    return dir_html(path, config);
+    return dir_html(path, tera);
 }
 
-fn dir_html(path: &Path, config: &Config) -> Response<Vec<u8>> {
-    if let Ok(s) = directory::get_html(path) {
-        if let Ok(wrapped) = wrap_html(s, config) {
-            return response::from_string(wrapped);
+fn dir_html(path: &Path, tera: &Tera) -> Response<Vec<u8>> {
+    if let Ok(contents) = directory::read_contents(path) {
+        eprintln!("Read contents {:#?}", serde_json::to_string(&contents).unwrap());
+        let mut context = tera::Context::new();
+        context.insert("dir_contents", &contents);
+        if let Ok(rendered) = tera.render("directory.html", &context) {
+            return response::from_string(rendered)
         }
     }
     return response::server_error()
@@ -139,25 +142,8 @@ fn dir_json(path: &Path, _config: &Config) -> Response<Vec<u8>> {
     }
 }
 
-fn wrap_html(contents: String, config: &Config) -> io::Result<String> {
-    let mut html_out = String::new();
-    { // Get header
-        let mut file = BufReader::new(File::open(&config.header)?);
-        file.read_to_string(&mut html_out)?;
-    }
-
-    html_out.push_str(&contents);
-
-    { // Add Footer
-        let mut file = BufReader::new(File::open(&config.footer)?);
-        file.read_to_string(&mut html_out)?;
-    }
-
-    Ok(html_out)
-}
-
 /// Convert a markdown document into an HTML response
-fn markdown_response(path: &Path, config: &Config, tera: &Tera) -> Result<Response<Vec<u8>>, std::io::Error> {
+fn markdown_response(path: &Path, tera: &Tera) -> Result<Response<Vec<u8>>, std::io::Error> {
     // Load the markdown
     let mut contents: String = String::new();
     {
@@ -169,10 +155,14 @@ fn markdown_response(path: &Path, config: &Config, tera: &Tera) -> Result<Respon
     let mut html_out = String::new();
     html::push_html(&mut html_out, parser);
 
+    let dir_contents = directory::read_contents(
+        path.parent() .expect("There should always be a parent directory to read contents from"))
+        .expect("Some error in reading the directory contents");
     // Apply the template
     use tera::Context;
     let mut context = Context::new();
     context.insert("content", &html_out);
+    context.insert("dir_contents", &dir_contents);
     let html_out = tera.render(MARKDOWN_TEMPLATE, &context).expect("Template didn't work");
     Ok(response::from_string(html_out))
 }

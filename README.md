@@ -11,7 +11,6 @@ other files will be presented unchanged.
     - [ ] From arguments
         - [ ] directory for the zettelkasten
         - [ ] styling files
-        - [ ] headers and footers
         - [ ] localhost or 0.0.0.0 (localhost only allows same-computer connections)
         - [ ] port number
         - [ ] auto-open browser
@@ -19,7 +18,7 @@ other files will be presented unchanged.
 - [ ] Web server
     - [x] uri maps to filesystem with ZETTEL_DIR as root
     - [x] "virtual" filesystem to check for static files (like css)
-    - [ ] show a directory listing for directory requests
+    - [x] show a directory listing for directory requests
     - [ ] HEAD request support
     - [ ] 404 page properly handled
         - [x] return 404 response
@@ -29,14 +28,14 @@ other files will be presented unchanged.
     - [ ] or `.html` unnecessary
     - [ ] watch for file changes, and auto-refresh page
 - [ ] Document conversion
+    - [x] render contents with html templates
     - [x] Convert `.md` to html automatically
         - [x] strait conversion
-        - [x] add header and footer
         - [x] handle "special characters"
     - [x] Support for images
         - [x] return images
     - [ ] "Smart links" -- remap links to find closest match
-    - [ ] Metadata from yaml headers
+    - [ ] Metadata from yaml headers or toml header
 - [ ] General Interface
     - [ ] file browser pane
     - [ ] search bar by file name

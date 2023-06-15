@@ -5,38 +5,49 @@
 use std::{
     io,
     fs,
-    path::{Path, PathBuf}, ffi::OsString,
+    path::Path, 
+    ffi::OsString,
 };
 
 use serde::{Deserialize, Serialize};
 use serde_json;
 
 #[derive(Debug)]
-pub enum Error {
+pub enum DirError {
     IO(io::Error),
     Encode(OsString),
     JSON(serde_json::Error),
 }
 
-impl std::fmt::Display for Error {
+impl std::error::Error for DirError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            DirError::IO(err) => err.source(),
+            DirError::JSON(err) => err.source(),
+            DirError::Encode(_) => None,
+        }
+    }
+}
+
+impl std::fmt::Display for DirError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "An directory-scanning error occured: {self:?}")
     }
 }
 
-impl From<io::Error> for Error {
+impl From<io::Error> for DirError {
     fn from(value: io::Error) -> Self {
         Self::IO(value)
     }
 }
 
-impl From<serde_json::Error> for Error {
+impl From<serde_json::Error> for DirError {
     fn from(value: serde_json::Error) -> Self {
         Self::JSON(value)
     }
 }
 
-impl From<OsString> for Error {
+impl From<OsString> for DirError {
     fn from(value: OsString) -> Self {
         Self::Encode(value)
     }
@@ -44,7 +55,7 @@ impl From<OsString> for Error {
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
 #[serde(tag = "type", content = "path")]
-enum Entry {
+pub enum Entry {
     Dir(String),
     File(String),
     Link(String),
@@ -70,7 +81,7 @@ impl Entry {
 
 // XXX This try-from is required because read_dir returns Result<DirEntry>
 impl TryFrom<io::Result<fs::DirEntry>> for Entry {
-    type Error = Error;
+    type Error = DirError;
 
     fn try_from(value: io::Result<fs::DirEntry>) -> Result<Self, Self::Error> {
         let dir_entry = value?;
@@ -80,7 +91,7 @@ impl TryFrom<io::Result<fs::DirEntry>> for Entry {
 
 // XXX Must implement as TryFrom, because getting the filetype may result in an error
 impl TryFrom<fs::DirEntry> for Entry {
-    type Error = Error;
+    type Error = DirError;
 
     fn try_from(value: fs::DirEntry) -> Result<Self, Self::Error> {
         let ftype = value.file_type()?;
@@ -98,14 +109,9 @@ impl TryFrom<fs::DirEntry> for Entry {
     }
 }
 
-pub fn get_html(path: &Path) -> Result<String, Error> {
+pub fn get_json(path: &Path) -> Result<String, DirError> {
     let entries = read_contents(path)?;
-    return Ok(to_html(entries));
-}
-
-pub fn get_json(path: &Path) -> Result<String, Error> {
-    let entries = read_contents(path)?;
-    return serde_json::to_string(&entries).map_err(Error::from);
+    return serde_json::to_string(&entries).map_err(DirError::from);
 }
 
 fn lift<T, E>(r: Result<Option<T>, E>) -> Option<Result<T, E>> {
@@ -116,8 +122,8 @@ fn lift<T, E>(r: Result<Option<T>, E>) -> Option<Result<T, E>> {
     }
 }
 
-fn read_contents(path: &Path) -> Result<Vec<Entry>, Error> {
-    let mut ret: Result<Vec<Entry>, Error> = path.read_dir()?
+pub fn read_contents(path: &Path) -> Result<Vec<Entry>, DirError> {
+    let mut ret: Result<Vec<Entry>, DirError> = path.read_dir()?
         .map(|e| Entry::try_from(e))
         // XXX any failure to strip prefix throws the entry away
         .map(|r| r.map(|e| e.strip_prefix(&path)))
@@ -130,23 +136,9 @@ fn read_contents(path: &Path) -> Result<Vec<Entry>, Error> {
     return ret;
 }
 
-fn to_html(entries: Vec<Entry>) -> String {
-    let mut s = String::from("<ul>\n");
-    for e in entries {
-        let p = match e {
-            Entry::Dir(p) => PathBuf::from(p),
-            Entry::File(p) => PathBuf::from(p),
-            Entry::Link(p) => PathBuf::from(p),
-            Entry::Other(_) => PathBuf::from("")
-        };
-        s.push_str(&format!("<li><a href=\"{}\">{}</a></li>\n", p.display(), p.file_name().unwrap().to_str().unwrap()))
-    }
-    s.push_str("</ul>");
-    return s
-}
-
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
     use super::*;
 
     // Intended to run with '-- --show-output'
@@ -162,8 +154,4 @@ mod tests {
         println!("{}", serde_json::to_string(&read_contents(&PathBuf::from("src")).unwrap()).unwrap());
     }
 
-    #[test]
-    fn makes_html() {
-        println!("{}", to_html(read_contents(&PathBuf::from("src")).unwrap()));
-    }
 }

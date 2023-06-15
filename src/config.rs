@@ -3,7 +3,7 @@
 
 use std::{
     env,
-    path::{PathBuf, Path}, 
+    path::PathBuf, 
     net::{SocketAddr, IpAddr},
 };
 
@@ -25,8 +25,6 @@ pub struct Config {
     pub rootdir: PathBuf,
     pub staticdir: PathBuf,
     pub template_dir: PathBuf,
-    pub header: PathBuf,
-    pub footer: PathBuf,
     pub addr: SocketAddr,
 }
 
@@ -44,8 +42,6 @@ impl Default for Config {
             rootdir: PathBuf::from("./"),
             staticdir: PathBuf::from("static"),
             template_dir: PathBuf::from("templates/**/*.html"),
-            header: PathBuf::from("header.html"),
-            footer: PathBuf::from("footer.html"),
         }
     }
 }
@@ -59,8 +55,6 @@ pub struct ConfigBuilder {
     rootdir: PathBuf,
     staticdir: PathBuf,
     template_dir: PathBuf,
-    header: PathBuf,
-    footer: PathBuf,
     addr: SocketAddr,
 }
 
@@ -72,22 +66,16 @@ impl ConfigBuilder {
             rootdir: config.rootdir,
             staticdir: config.staticdir,
             template_dir: config.template_dir,
-            header: config.header,
-            footer: config.footer,
             addr: config.addr,
         }
     }
     
     /// Returns the finished Config
     pub fn build(self) -> Config {
-        let header = Path::join(self.staticdir.as_path(), self.header);
-        let footer = Path::join(self.staticdir.as_path(), self.footer);
         Config {
             rootdir: self.rootdir,
             staticdir: self.staticdir,
             template_dir: self.template_dir,
-            header,
-            footer,
             addr: self.addr,
         }
     }
@@ -121,18 +109,6 @@ impl ConfigBuilder {
     /// Set the static directory for the fileserver
     pub fn set_static(mut self, path: &str) -> ConfigBuilder{
         self.staticdir = PathBuf::from(path);
-        self
-    }
-
-    /// Set the header file to be prepended to all markdown pages
-    pub fn set_header(mut self, header: &str) -> ConfigBuilder{
-        self.header = PathBuf::from(header);
-        self
-    }
-
-    /// Set the footer file to be appended to all markdown pages
-    pub fn set_footer(mut self, footer: &str) -> ConfigBuilder{
-        self.footer = PathBuf::from(footer);
         self
     }
 
@@ -185,47 +161,6 @@ mod tests {
         assert_eq!(PathBuf::from("path/to/rootdir"), built.rootdir);
     }
     
-    #[test]
-    fn builder_sets_header_rel() {
-        let built = ConfigBuilder::new()
-            .set_static("static")
-            .set_header("header.html")
-            .build();
-        assert_eq!(PathBuf::from("static/header.html"), built.header);
-    }
-    
-    #[test]
-    fn builder_sets_footer_rel() {
-        // Note that `footer` is set relative to `staticdir`
-        let built = ConfigBuilder::new()
-            .set_static("static")
-            .set_footer("footer.html")
-            .build();
-        assert_eq!(PathBuf::from("static/footer.html"), built.footer);
-    }
-
-    #[test]
-    fn builder_sets_header_abs() {
-        // If the header file is an absolute path, then staticdir is not used
-        let built = ConfigBuilder::new()
-            .set_static("static")
-            .set_header("/header.html")
-            .build();
-        assert_ne!(PathBuf::from("static/header.html"), built.header);
-        assert_eq!(PathBuf::from("/header.html"), built.header);
-    }
-
-    #[test]
-    fn builder_sets_footer_abs() {
-        // If the footer file is an absolute path, then staticdir is not used
-        let built = ConfigBuilder::new()
-            .set_static("static")
-            .set_footer("/footer.html")
-            .build();
-        assert_ne!(PathBuf::from("static/footer.html"), built.footer);
-        assert_eq!(PathBuf::from("/footer.html"), built.footer);
-    }
-
     #[test]
     fn builder_sets_addr_tuple() {
         let addr_source = ([1,1,1,1], 8080);
