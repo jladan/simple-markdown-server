@@ -37,8 +37,10 @@ impl Handler {
         Handler {config, resolver, tera}
     }
 
-    pub fn handle_request<T>(&self, req: http::Request<T>) 
+    pub fn handle_request<T>(&mut self, req: http::Request<T>) 
         -> Result<Response<Vec<u8>>, std::io::Error> {
+            #[cfg(debug_assertions)]
+            self.tera.full_reload().expect("Error parsing template");
             use http::Method;
             match req.method() {
                 &Method::GET => self.handle_get(req),
@@ -156,7 +158,7 @@ fn markdown_response(path: &Path, tera: &Tera) -> Result<Response<Vec<u8>>, std:
     html::push_html(&mut html_out, parser);
 
     let dir_contents = directory::read_contents(
-        path.parent() .expect("There should always be a parent directory to read contents from"))
+        path.parent().expect("There should always be a parent directory to read contents from"))
         .expect("Some error in reading the directory contents");
     // Apply the template
     use tera::Context;

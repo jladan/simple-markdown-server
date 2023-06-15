@@ -16,7 +16,8 @@ fn main() -> std::io::Result<()> {
         .source_env()
         .build();
     let listener = TcpListener::bind(config.addr)?;
-    let handler: Handler = Handler::new(config);
+    // XXX Has to be mut to update templates while running
+    let mut handler: Handler = Handler::new(config);
 
     for stream in listener.incoming() {
         let mut stream = stream.unwrap();
