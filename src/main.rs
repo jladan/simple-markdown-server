@@ -1,6 +1,8 @@
 use std::{
-    net::TcpListener,
+    net::{TcpListener, TcpStream},
     io::{Write, BufReader}, 
+    thread, 
+    sync::Arc,
 };
 
 use zettel_web::{
@@ -17,11 +19,24 @@ fn main() -> std::io::Result<()> {
         .build();
     let listener = TcpListener::bind(config.addr)?;
     // XXX Has to be mut to update templates while running
-    let mut handler: Handler = Handler::new(config);
+    let handler: Arc<Handler> = Arc::new(Handler::new(config));
 
     for stream in listener.incoming() {
-        let mut stream = stream.unwrap();
-        // Read the stream as a request
+        let stream = stream.unwrap();
+        let handler = handler.clone();
+
+        thread::spawn(move || {
+            if let Err(e) =  handle_connection(stream, handler) {
+                eprintln!("{e}");
+            }
+        });
+    }
+
+    Ok(())
+}
+
+/// Parses the stream as a request, then hands it off to the request handler
+fn handle_connection(mut stream: TcpStream, handler: Arc<Handler>) -> std::io::Result<()>{
         let mut buf_reader = BufReader::new(&stream);
         let req = request::from_bufread(&mut buf_reader);
         // If the request works, then serve it
@@ -33,9 +48,5 @@ fn main() -> std::io::Result<()> {
         } else if let Err(ReqError::IO(e)) = req {
             return Err(e);
         }
-
-    }
-
-    Ok(())
+        Ok(())
 }
-

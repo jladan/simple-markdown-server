@@ -6,7 +6,7 @@ use pulldown_cmark::{Parser, Options, html};
 use std::{
     io::{BufReader, Read}, 
     path::Path, 
-    fs::File,
+    fs::File, sync::RwLock,
 };
 
 use crate::{
@@ -26,21 +26,24 @@ mod directory;
 pub struct Handler {
     config: Config,
     resolver: Resolver,
-    tera: Tera,
+    tera: RwLock<Tera>,
 }
 
 impl Handler {
     pub fn new(config: Config) -> Handler {
         let resolver = Resolver::new(&config);
         let template_glob = config.template_dir.join("**/*.html");
-        let tera = Tera::new(&template_glob.to_str().unwrap()).expect("Error parsing template");
+        let tera = RwLock::new(Tera::new(&template_glob.to_str().unwrap()).expect("Error parsing template"));
         Handler {config, resolver, tera}
     }
 
-    pub fn handle_request<T>(&mut self, req: http::Request<T>) 
+    pub fn handle_request<T>(&self, req: http::Request<T>) 
         -> Result<Response<Vec<u8>>, std::io::Error> {
             #[cfg(debug_assertions)]
-            self.tera.full_reload().expect("Error parsing template");
+            {
+            self.tera.write().unwrap()
+                .full_reload().expect("Error parsing template");
+            }
             use http::Method;
             match req.method() {
                 &Method::GET => self.handle_get(req),
@@ -52,11 +55,12 @@ impl Handler {
         let resource = self.resolver.lookup(req.uri());
         let accepts = preferred_format(&req.headers());
         eprintln!("Resource Found: {:?}", resource);
+        let tera = self.tera.read().unwrap();
         match resource {
             Resolved::File(path) => file_response(&path),
-            Resolved::Markdown(path) => markdown_response(&path, &self.tera),
+            Resolved::Markdown(path) => markdown_response(&path, &tera),
             Resolved::Directory(path) => 
-                Ok(dir_response(&path, accepts, &self.config, &self.tera)),
+                Ok(dir_response(&path, accepts, &self.config, &tera)),
             Resolved::None => Ok(not_found_response(req.uri().path())),
         }
     }
