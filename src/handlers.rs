@@ -153,7 +153,9 @@ fn markdown_response(path: &Path, tera: &Tera) -> Result<Response<Vec<u8>>, std:
         file.read_to_string(&mut contents)?;
     }
     // Parse the markdown
-    let parser = Parser::new_ext(&contents, Options::all());
+    // NOTE(jladan): disable smart punctuation for latex
+    let options = Options::from_bits_truncate(0b1011110);
+    let parser = Parser::new_ext(&contents, options);
     let mut html_out = String::new();
     html::push_html(&mut html_out, parser);
 
