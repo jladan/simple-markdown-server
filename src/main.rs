@@ -1,7 +1,6 @@
 use std::{
     net::{TcpListener, TcpStream},
     io::{Write, BufReader}, 
-    thread, 
     sync::Arc,
 };
 
@@ -12,20 +11,25 @@ use zettel_web::{
     config::Config,
 };
 
+use threadpool::ThreadPool;
+
+const N_WORKERS: usize = 4;
 
 fn main() -> std::io::Result<()> {
     let config = Config::build()
         .source_env()
         .build();
     let listener = TcpListener::bind(config.addr)?;
-    // XXX Has to be mut to update templates while running
-    let handler: Arc<Handler> = Arc::new(Handler::new(config));
 
+
+    let pool = ThreadPool::new(N_WORKERS);
+    // Has to be an Arc to ensure lifetimes
+    let handler: Arc<Handler> = Arc::new(Handler::new(config));
     for stream in listener.incoming() {
         let stream = stream.unwrap();
         let handler = handler.clone();
 
-        thread::spawn(move || {
+        pool.execute(move || {
             if let Err(e) =  handle_connection(stream, handler) {
                 eprintln!("{e}");
             }
