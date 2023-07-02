@@ -12,47 +12,6 @@ use std::{
 use serde::{Deserialize, Serialize};
 use serde_json;
 
-#[derive(Debug)]
-pub enum DirError {
-    IO(io::Error),
-    Encode(OsString),
-    JSON(serde_json::Error),
-}
-
-impl std::error::Error for DirError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            DirError::IO(err) => err.source(),
-            DirError::JSON(err) => err.source(),
-            DirError::Encode(_) => None,
-        }
-    }
-}
-
-impl std::fmt::Display for DirError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "An directory-scanning error occured: {self:?}")
-    }
-}
-
-impl From<io::Error> for DirError {
-    fn from(value: io::Error) -> Self {
-        Self::IO(value)
-    }
-}
-
-impl From<serde_json::Error> for DirError {
-    fn from(value: serde_json::Error) -> Self {
-        Self::JSON(value)
-    }
-}
-
-impl From<OsString> for DirError {
-    fn from(value: OsString) -> Self {
-        Self::Encode(value)
-    }
-}
-
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
 #[serde(tag = "type", content = "path")]
 pub enum Entry {
@@ -155,3 +114,45 @@ mod tests {
     }
 
 }
+
+#[derive(Debug)]
+pub enum DirError {
+    IO(io::Error),
+    Encode(OsString),
+    JSON(serde_json::Error),
+}
+
+impl std::error::Error for DirError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            DirError::IO(err) => err.source(),
+            DirError::JSON(err) => err.source(),
+            DirError::Encode(_) => None,
+        }
+    }
+}
+
+impl std::fmt::Display for DirError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "An directory-scanning error occured: {self:?}")
+    }
+}
+
+impl From<io::Error> for DirError {
+    fn from(value: io::Error) -> Self {
+        Self::IO(value)
+    }
+}
+
+impl From<serde_json::Error> for DirError {
+    fn from(value: serde_json::Error) -> Self {
+        Self::JSON(value)
+    }
+}
+
+impl From<OsString> for DirError {
+    fn from(value: OsString) -> Self {
+        Self::Encode(value)
+    }
+}
+

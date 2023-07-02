@@ -15,6 +15,7 @@ serde_json = "1.0.96"
 serde = { version = "1.0.163", features = ["derive"] }
 url-escape = "0.1.1"
 tera = { version = "1" }
+walkdir = "2.3.3"
 
 [dev-dependencies]
 scopeguard = "1.1.0"

@@ -972,4 +972,5 @@ dependencies = [
  "tera",
  "threadpool",
  "url-escape",
+ "walkdir",
 ]

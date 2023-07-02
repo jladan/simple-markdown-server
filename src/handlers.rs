@@ -22,6 +22,7 @@ use tera::Tera;
 const MARKDOWN_TEMPLATE: &str = "markdown.html";
 
 mod directory;
+pub mod walkdir;
 
 pub struct Handler {
     config: Config,
