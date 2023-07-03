@@ -78,7 +78,7 @@ impl Directory {
 }
 
 impl File {
-    fn new(name: &OsStr, path: &Path) -> Self {
+    fn new(name: &OsStr, path: OsString) -> Self {
         Self { 
             name: name.to_string_lossy().to_string(), 
             path: path.to_string_lossy().to_string(),
@@ -100,7 +100,7 @@ tree. This would inherently be recursive.
 
 Because walkdir is almost a depth-first iterator, it will be much easier to build the tree iteratively using a stack.
 */
-pub fn walk_dir(path: &Path) -> Result<Directory, StripPrefixError> {
+pub fn walk_dir(path: &Path, absolute: bool) -> Result<Directory, StripPrefixError> {
     let prefix = path;      // Prefix to strip from all paths
     let mut dirstack: Vec<Directory> = Vec::new();
     let mut walker = WalkDir::new(prefix).into_iter().filter_map(|e| e.ok());
@@ -118,6 +118,7 @@ pub fn walk_dir(path: &Path) -> Result<Directory, StripPrefixError> {
             while let Some(mut prevdir) = dirstack.pop() {
                 // Add the current directory to its parent
                 format_dir(&mut curdir.path);
+                if absolute { *curdir.path.as_mut_os_string() = make_abs(&curdir.path) }
                 prevdir.dirs.push(curdir);
                 curdir = prevdir;
                 // Continue until we've found the parent
@@ -128,6 +129,11 @@ pub fn walk_dir(path: &Path) -> Result<Directory, StripPrefixError> {
         }
         // Now perform logic on current entry
         if entry.file_type().is_file() {
+            let stripped = if absolute { 
+                make_abs(stripped)
+            } else {
+                stripped.as_os_str().to_os_string()
+            };
             curdir.files.push(File::new(entry.file_name(), stripped));
         } else if entry.file_type().is_dir() {
             // Push current directory to stack, and start processing next one
@@ -140,9 +146,11 @@ pub fn walk_dir(path: &Path) -> Result<Directory, StripPrefixError> {
     while let Some(mut prevdir) = dirstack.pop() {
         // Add the current directory to its parent
         format_dir(&mut curdir.path);
+        if absolute { *curdir.path.as_mut_os_string() = make_abs(&curdir.path) }
         prevdir.dirs.push(curdir);
         curdir = prevdir;
     }
+    if absolute { *curdir.path.as_mut_os_string() = make_abs(&curdir.path) }
     return Ok(curdir)
 }
 
@@ -150,16 +158,9 @@ fn format_dir(a: &mut PathBuf) {
     a.as_mut_os_string().push("/");
 }
 
-fn make_abs(a: &PathBuf) -> PathBuf {
+fn make_abs(a: &Path) -> OsString {
     let mut built = OsString::with_capacity(a.as_os_str().len() + 1);
     built.push("/");
     built.push(a.as_os_str());
-    built.into()
-}
-
-fn concat_osstr(a: &OsStr, b: &OsStr) -> OsString {
-    let mut ret = OsString::with_capacity(a.len() + b.len());
-    ret.push(a);
-    ret.push(b);
-    ret
+    built
 }

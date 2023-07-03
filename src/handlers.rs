@@ -118,7 +118,7 @@ fn file_response(path: &Path) -> Result<Response<Vec<u8>>, std::io::Error> {
 
 /// Response for a found directory
 fn dir_response(path: &Path, accepts: Vec<AcceptFormat>, config: &Config, tera: &Tera) -> Response<Vec<u8>> {
-    if let Ok(dirtree) = walkdir::walk_dir(path) {
+    if let Ok(dirtree) = walkdir::walk_dir(path, false) {
         use AcceptFormat::*;
         for af in accepts {
             match af {
