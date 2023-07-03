@@ -2,7 +2,10 @@
 //!
 //! Finds all files in the current directory and forms either html or json to represent them.
 
-use std::{path::{Path, PathBuf}, ffi::OsStr};
+use std::{
+    path::{Path, PathBuf, StripPrefixError}, 
+    ffi::{OsStr, OsString}
+};
 
 use walkdir::WalkDir;
 
@@ -47,7 +50,7 @@ pub fn dummy_dir() -> DirTree {
  * In addition, it forces my to store separate lists of subdirectorys and files, which means the
  * values are already sorted by type.
  */
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Directory { 
     name: String, 
     // NOTE(jladan): A path is best for creating the tree, but if it is used for links, this will
@@ -57,7 +60,7 @@ pub struct Directory {
     files: Vec<File>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct File { 
     name: String, 
     path: String,
@@ -78,7 +81,7 @@ impl File {
     fn new(name: &OsStr, path: &Path) -> Self {
         Self { 
             name: name.to_string_lossy().to_string(), 
-            path: format!("/{}", path.display()),
+            path: path.to_string_lossy().to_string(),
         }
     }
 }
@@ -97,17 +100,24 @@ tree. This would inherently be recursive.
 
 Because walkdir is almost a depth-first iterator, it will be much easier to build the tree iteratively using a stack.
 */
-pub fn walk_dir(path: &Path) -> Directory {
+pub fn walk_dir(path: &Path) -> Result<Directory, StripPrefixError> {
     let prefix = path;      // Prefix to strip from all paths
     let mut dirstack: Vec<Directory> = Vec::new();
-    let mut curdir: Directory = Directory::new("/", &PathBuf::from(""));
-    for entry in WalkDir::new(prefix).into_iter().filter_map(|e| e.ok()) {
-        let stripped = entry.path().strip_prefix(prefix).expect("Prefix doesn't match?");
+    let mut walker = WalkDir::new(prefix).into_iter().filter_map(|e| e.ok());
+    let mut curdir: Directory = if let Some(entry) = walker.next() {
+        let stripped = entry.path().strip_prefix(prefix)?;
+        Directory::new("/", stripped)
+    } else {
+        Directory::new("/", &PathBuf::from(""))
+    };
+    for entry in walker {
+        let stripped = entry.path().strip_prefix(prefix)?;
         if !stripped.starts_with(&curdir.path) {
             // Left the current directory
             // Need to find parent in the stack
             while let Some(mut prevdir) = dirstack.pop() {
                 // Add the current directory to its parent
+                format_dir(&mut curdir.path);
                 prevdir.dirs.push(curdir);
                 curdir = prevdir;
                 // Continue until we've found the parent
@@ -126,5 +136,30 @@ pub fn walk_dir(path: &Path) -> Directory {
             curdir = Directory::new(&entry.file_name().to_string_lossy(), stripped);
         }
     }
-    return curdir
+    // Now, unstack all the way to root
+    while let Some(mut prevdir) = dirstack.pop() {
+        // Add the current directory to its parent
+        format_dir(&mut curdir.path);
+        prevdir.dirs.push(curdir);
+        curdir = prevdir;
+    }
+    return Ok(curdir)
+}
+
+fn format_dir(a: &mut PathBuf) {
+    a.as_mut_os_string().push("/");
+}
+
+fn make_abs(a: &PathBuf) -> PathBuf {
+    let mut built = OsString::with_capacity(a.as_os_str().len() + 1);
+    built.push("/");
+    built.push(a.as_os_str());
+    built.into()
+}
+
+fn concat_osstr(a: &OsStr, b: &OsStr) -> OsString {
+    let mut ret = OsString::with_capacity(a.len() + b.len());
+    ret.push(a);
+    ret.push(b);
+    ret
 }

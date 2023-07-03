@@ -118,31 +118,33 @@ fn file_response(path: &Path) -> Result<Response<Vec<u8>>, std::io::Error> {
 
 /// Response for a found directory
 fn dir_response(path: &Path, accepts: Vec<AcceptFormat>, config: &Config, tera: &Tera) -> Response<Vec<u8>> {
-    for af in accepts {
-        match af {
-            AcceptFormat::Json => return dir_json(path, config),
-            AcceptFormat::Html => return dir_html(path, tera),
-            AcceptFormat::Any => return dir_html(path, tera),
+    if let Ok(dirtree) = walkdir::walk_dir(path) {
+        use AcceptFormat::*;
+        for af in accepts {
+            match af {
+                Json => return dir_json(dirtree, config),
+                Html | Any => return dir_html(dirtree, tera),
+            }
         }
+        // Apparently no preferences?
+        return dir_html(dirtree, tera);
+    } else {
+        return response::server_error();
     }
-    // Apparently no preferences?
-    return dir_html(path, tera);
 }
 
-fn dir_html(path: &Path, tera: &Tera) -> Response<Vec<u8>> {
-    if let Ok(contents) = directory::read_contents(path) {
-        eprintln!("Read contents {:#?}", serde_json::to_string(&contents).unwrap());
-        let mut context = tera::Context::new();
-        context.insert("dir_contents", &contents);
-        if let Ok(rendered) = tera.render("directory.html", &context) {
-            return response::from_string(rendered)
-        }
+fn dir_html(dirtree: walkdir::Directory, tera: &Tera) -> Response<Vec<u8>> {
+    eprintln!("Read contents {:#?}", serde_json::to_string(&dirtree).unwrap());
+    let mut context = tera::Context::new();
+    context.insert("dir_contents", &dirtree);
+    if let Ok(rendered) = tera.render("directory.html", &context) {
+        return response::from_string(rendered)
     }
     return response::server_error()
 }
 
-fn dir_json(path: &Path, _config: &Config) -> Response<Vec<u8>> {
-    if let Ok(s) = directory::get_json(path) {
+fn dir_json(dirtree: walkdir::Directory,  _config: &Config) -> Response<Vec<u8>> {
+    if let Ok(s) = serde_json::to_string(&dirtree) {
         response::from_string(s)
     } else {
         response::server_error()
