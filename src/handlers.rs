@@ -34,7 +34,8 @@ impl Handler {
     pub fn new(config: Config) -> Handler {
         let resolver = Resolver::new(&config);
         let template_glob = config.template_dir.join("**/*.html");
-        let tera = RwLock::new(Tera::new(&template_glob.to_str().unwrap()).expect("Error parsing template"));
+        let tera = RwLock::new(Tera::new(&template_glob.to_str().unwrap())
+                               .expect("Error parsing template"));
         Handler {config, resolver, tera}
     }
 
@@ -59,7 +60,7 @@ impl Handler {
         let tera = self.tera.read().unwrap();
         match resource {
             Resolved::File(path) => file_response(&path),
-            Resolved::Markdown(path) => markdown_response(&path, &tera),
+            Resolved::Markdown(path) => markdown_response(&path, &self.config, &tera),
             Resolved::Directory(path) => 
                 Ok(dir_response(&path, accepts, &self.config, &tera)),
             Resolved::None => Ok(not_found_response(req.uri().path())),
@@ -152,7 +153,7 @@ fn dir_json(dirtree: walkdir::Directory,  _config: &Config) -> Response<Vec<u8>>
 }
 
 /// Convert a markdown document into an HTML response
-fn markdown_response(path: &Path, tera: &Tera) -> Result<Response<Vec<u8>>, std::io::Error> {
+fn markdown_response(path: &Path, config: &Config, tera: &Tera) -> Result<Response<Vec<u8>>, std::io::Error> {
     // Load the markdown
     let mut contents: String = String::new();
     {
@@ -166,16 +167,20 @@ fn markdown_response(path: &Path, tera: &Tera) -> Result<Response<Vec<u8>>, std:
     let mut html_out = String::new();
     html::push_html(&mut html_out, parser);
 
-    let dir_contents = directory::read_contents(
-        path.parent().expect("There should always be a parent directory to read contents from"))
-        .expect("Some error in reading the directory contents");
+    let root_contents = walkdir::walk_dir(&config.rootdir , true)
+        .expect("Problem stripping prefix?");
     // Apply the template
     use tera::Context;
     let mut context = Context::new();
     context.insert("content", &html_out);
-    context.insert("dir_contents", &dir_contents);
-    let html_out = tera.render(MARKDOWN_TEMPLATE, &context).expect("Template didn't work");
-    Ok(response::from_string(html_out))
+    context.insert("dirtree", &root_contents);
+    match tera.render(MARKDOWN_TEMPLATE, &context) {
+        Ok(html_out) => Ok(response::from_string(html_out)),
+        Err(e) => {
+            eprintln!("{e}");
+            Ok(response::server_error())
+        }
+    }
 }
 
 // }}}
