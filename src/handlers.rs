@@ -140,7 +140,6 @@ fn dir_response(path: &Path, accepts: Vec<AcceptFormat>, config: &Config, tera: 
 }
 
 fn dir_html(dirtree: walkdir::Directory, tera: &Tera) -> Response<Vec<u8>> {
-    eprintln!("Read contents {:#?}", serde_json::to_string(&dirtree).unwrap());
     let mut context = tera::Context::new();
     context.insert("dir_contents", &dirtree);
     if let Ok(rendered) = tera.render("directory.html", &context) {
