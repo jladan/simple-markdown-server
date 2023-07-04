@@ -34,8 +34,10 @@ impl Handler {
     pub fn new(config: Config) -> Handler {
         let resolver = Resolver::new(&config);
         let template_glob = config.template_dir.join("**/*.html");
-        let tera = RwLock::new(Tera::new(&template_glob.to_str().unwrap())
-                               .expect("Error parsing template"));
+        let tera = match Tera::new(&template_glob.to_str().unwrap()) {
+            Ok(t) => RwLock::new(t),
+            Err(e) => {eprintln!("{e}"); panic!()},
+        };
         Handler {config, resolver, tera}
     }
 
@@ -43,8 +45,11 @@ impl Handler {
         -> Result<Response<Vec<u8>>, std::io::Error> {
             #[cfg(debug_assertions)]
             {
-            self.tera.write().unwrap()
-                .full_reload().expect("Error parsing template");
+                let mut lock = self.tera.write().unwrap();
+                match lock.full_reload() {
+                    Ok(_) => (),
+                    Err(e) => {eprintln!("{e}"); drop(lock); panic!()},
+                }
             }
             use http::Method;
             match req.method() {
