@@ -7,7 +7,7 @@ use std::{
     ffi::{OsStr, OsString}
 };
 
-use walkdir::WalkDir;
+use walkdir::{WalkDir, DirEntry};
 
 use serde::Serialize;
 
@@ -105,7 +105,9 @@ pub fn walk_dir(path: &Path, absolute: bool) -> Result<Directory, StripPrefixErr
     let mut dirstack: Vec<Directory> = Vec::new();
     let mut walker = WalkDir::new(prefix)
         .sort_by(|a,b| a.file_name().to_ascii_lowercase().cmp(&b.file_name().to_ascii_lowercase()))
-        .into_iter().filter_map(|e| e.ok());
+        .into_iter()
+        .filter_entry(|e| !is_hidden(e))
+        .filter_map(|e| e.ok());
     let mut curdir: Directory = if let Some(entry) = walker.next() {
         let stripped = entry.path().strip_prefix(prefix)?;
         Directory::new("/", stripped)
@@ -165,4 +167,11 @@ fn make_abs(a: &Path) -> OsString {
     built.push("/");
     built.push(a.as_os_str());
     built
+}
+
+fn is_hidden(entry: &DirEntry) -> bool {
+    entry.file_name()
+        .to_str()
+        .map(|s| s.starts_with("."))
+        .unwrap_or(false)
 }
