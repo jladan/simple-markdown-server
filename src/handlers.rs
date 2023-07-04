@@ -41,23 +41,23 @@ impl Handler {
         Handler {config, resolver, tera}
     }
 
-    pub fn handle_request<T>(&self, req: http::Request<T>) 
-        -> Result<Response<Vec<u8>>, std::io::Error> {
-            #[cfg(debug_assertions)]
-            {
-                let mut lock = self.tera.write().unwrap();
-                match lock.full_reload() {
-                    Ok(_) => (),
-                    Err(e) => {eprintln!("{e}"); drop(lock); panic!()},
-                }
-            }
-            use http::Method;
-            match req.method() {
-                &Method::GET => self.handle_get(req),
-                &Method::HEAD => self.handle_head(req),
-                _ => Ok(response::unimplemented()),
+    pub fn handle_request<T>(&self, req: http::Request<T>) -> Result<Response<Vec<u8>>, std::io::Error> {
+        #[cfg(debug_assertions)]
+        {
+            let mut lock = self.tera.write().unwrap();
+            match lock.full_reload() {
+                Ok(_) => (),
+                Err(e) => {eprintln!("{e}"); drop(lock); panic!()},
             }
         }
+        use http::Method;
+        match req.method() {
+            &Method::GET => self.handle_get(req),
+            &Method::HEAD => self.handle_head(req),
+            _ => Ok(response::unimplemented()),
+        }
+    }
+
     pub fn handle_get<T>(&self, req: http::Request<T>) -> Result<Response<Vec<u8>>, std::io::Error> {
         let resource = self.resolver.lookup(req.uri());
         let accepts = preferred_format(&req.headers());
@@ -142,10 +142,11 @@ fn dir_response(path: &Path, accepts: Vec<AcceptFormat>, config: &Config, tera: 
 fn dir_html(dirtree: walkdir::Directory, tera: &Tera) -> Response<Vec<u8>> {
     let mut context = tera::Context::new();
     context.insert("dir_contents", &dirtree);
-    if let Ok(rendered) = tera.render("directory.html", &context) {
-        return response::from_string(rendered)
+    context.insert("dirtree", &dirtree);
+    match tera.render("directory.html", &context) {
+        Ok(rendered) => response::from_string(rendered),
+        Err(e) => {eprintln!("{e}"); response::server_error()},
     }
-    return response::server_error()
 }
 
 fn dir_json(dirtree: walkdir::Directory,  _config: &Config) -> Response<Vec<u8>> {

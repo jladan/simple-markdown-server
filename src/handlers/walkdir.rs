@@ -103,7 +103,9 @@ Because walkdir is almost a depth-first iterator, it will be much easier to buil
 pub fn walk_dir(path: &Path, absolute: bool) -> Result<Directory, StripPrefixError> {
     let prefix = path;      // Prefix to strip from all paths
     let mut dirstack: Vec<Directory> = Vec::new();
-    let mut walker = WalkDir::new(prefix).into_iter().filter_map(|e| e.ok());
+    let mut walker = WalkDir::new(prefix)
+        .sort_by(|a,b| a.file_name().to_ascii_lowercase().cmp(&b.file_name().to_ascii_lowercase()))
+        .into_iter().filter_map(|e| e.ok());
     let mut curdir: Directory = if let Some(entry) = walker.next() {
         let stripped = entry.path().strip_prefix(prefix)?;
         Directory::new("/", stripped)
