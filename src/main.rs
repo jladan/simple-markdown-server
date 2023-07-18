@@ -19,6 +19,7 @@ fn main() -> std::io::Result<()> {
     let config = Config::build()
         .source_env()
         .build();
+    println!("{config:#?}");
     let listener = TcpListener::bind(config.addr)?;
 
 
