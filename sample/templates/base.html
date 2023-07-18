@@ -33,16 +33,14 @@
         <nav id="top-bar" class="bg-slate-500">
             <h1 style="display: inline;"><a href="/">Markdown browser</a></h1>
         </nav>
-        <div class="container flex flex-row">
-        <nav id="left-pane" class="container-md grow-1 shrink-0 min-w-fit bg-slate-300 p-4">
+        <nav id="left-pane" class="min-w-fit bg-slate-300 p-4">
             <h1>Contents</h1>
             <ul>
                 <li class="nav-directory">{{ macros::directory_tree(dirtree=dirtree) }}</li>
             </ul>
         </nav>
-        <main id="content-view" class="container bg-slate-200 grow-1 p-4">
+        <main id="content-view" class="bg-slate-200 p-4">
             {% block content %}{% endblock content %}
         </main>
-        </div>
     </body>
 </html>

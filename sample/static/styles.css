@@ -46,10 +46,39 @@ html {
 */
 
 body {
+  display: grid;
   margin: 0;
-  /* 1 */
-  line-height: inherit;
-  /* 2 */
+  grid-template-columns: auto 3fr;
+  grid-template-rows: 3rem 1fr;
+  background: hsl(50 10% 90%);
+  min-height: 100vh;
+}
+
+#top-bar {
+  padding: .5rem 1rem;
+  grid-column-start: span 2;
+  /* background: hsl(215deg 16% 47%) */
+}
+
+nav h1 {
+  margin: 0;
+}
+
+#left-pane {
+  padding: .5rem;
+  max-width: 15rem;
+  min-width: 12rem;
+  width: max-content;
+  /* background: hsl(215deg 27% 84%) */
+}
+
+main#content-view {
+  padding: 1rem;
+}
+
+nav:first-child,
+main:first-child {
+  margin-top: 0;
 }
 
 /*
