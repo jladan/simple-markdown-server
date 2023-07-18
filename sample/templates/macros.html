@@ -1,0 +1,13 @@
+{% macro directory_tree(dirtree, depth=3) %}
+<button class="directory-collapse"><h2>{{dirtree.name}}</h2></button>
+{% if depth > 0 %}
+<ul>
+    {%  for item in dirtree.dirs %}
+    <li class="nav-directory collapsed">{{ self::directory_tree(dirtree=item, depth=depth-1) }}</li>
+    {% endfor %}
+    {%  for item in dirtree.files %}
+    <li class="nav-file"><a href="{{item.path}}">{{item.name}}</a></li>
+    {% endfor %}
+</ul>
+{% endif %}
+{% endmacro input %}
