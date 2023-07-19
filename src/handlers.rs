@@ -65,7 +65,7 @@ impl Handler {
         let tera = self.tera.read().unwrap();
         match resource {
             Resolved::File(path) => file_response(&path),
-            Resolved::Markdown(path) => markdown_response(&path, &self.config, &tera),
+            Resolved::Markdown(path) => markdown_response(&path, accepts, &self.config, &tera),
             Resolved::Directory(path) => 
                 Ok(dir_response(&path, accepts, &self.config, &tera)),
             Resolved::None => Ok(not_found_response(req.uri().path())),
@@ -82,11 +82,16 @@ impl Handler {
 
 enum AcceptFormat {
     Html,
+    PartialHtml,
     Json,
     Any,
 }
 
 fn preferred_format(headers: &http::HeaderMap) -> Vec<AcceptFormat> {
+    if let Some(value) = headers.get("x-partial") {
+        eprintln!("Partial header: {value:?}");
+        return vec![AcceptFormat::PartialHtml];
+    }
     if let Some(value) = headers.get("accept") {
         value.to_str().expect("accept header could not be converted to string?")
             .split(',').filter_map(|e| {
@@ -129,21 +134,22 @@ fn dir_response(path: &Path, accepts: Vec<AcceptFormat>, config: &Config, tera: 
         for af in accepts {
             match af {
                 Json => return dir_json(dirtree, config),
-                Html | Any => return dir_html(dirtree, tera),
+                PartialHtml => return dir_html(dirtree, "directory-chunk.html", tera),
+                Html | Any => return dir_html(dirtree, "directory.html", tera),
             }
         }
         // Apparently no preferences?
-        return dir_html(dirtree, tera);
+        return dir_html(dirtree, "directory.html", tera);
     } else {
         return response::server_error();
     }
 }
 
-fn dir_html(dirtree: walkdir::Directory, tera: &Tera) -> Response<Vec<u8>> {
+fn dir_html(dirtree: walkdir::Directory, template: &str, tera: &Tera) -> Response<Vec<u8>> {
     let mut context = tera::Context::new();
     context.insert("dir_contents", &dirtree);
     context.insert("dirtree", &dirtree);
-    match tera.render("directory.html", &context) {
+    match tera.render(template, &context) {
         Ok(rendered) => response::from_string(rendered),
         Err(e) => {eprintln!("{e}"); response::server_error()},
     }
@@ -157,8 +163,20 @@ fn dir_json(dirtree: walkdir::Directory,  _config: &Config) -> Response<Vec<u8>>
     }
 }
 
+fn markdown_response(path: &Path, accepts: Vec<AcceptFormat>, config: &Config, tera: &Tera) -> Result<Response<Vec<u8>>, std::io::Error> {
+    for af in accepts {
+        use AcceptFormat::*;
+        match af {
+            PartialHtml => return markdown_response_naked(path),
+            Html | Any => return markdown_response_full(path, config, tera),
+            _ => continue,
+        }
+    }
+    Ok(response::not_allowed())
+}
+
 /// Convert a markdown document into an HTML response
-fn markdown_response(path: &Path, config: &Config, tera: &Tera) -> Result<Response<Vec<u8>>, std::io::Error> {
+fn markdown_response_full(path: &Path, config: &Config, tera: &Tera) -> Result<Response<Vec<u8>>, std::io::Error> {
     // Load the markdown
     let mut contents: String = String::new();
     {
@@ -186,6 +204,24 @@ fn markdown_response(path: &Path, config: &Config, tera: &Tera) -> Result<Respon
             Ok(response::server_error())
         }
     }
+}
+
+/// Convert a markdown document into an HTML response
+fn markdown_response_naked(path: &Path) -> Result<Response<Vec<u8>>, std::io::Error> {
+    // Load the markdown
+    let mut contents: String = String::new();
+    {
+        let mut file = BufReader::new(File::open(path)?);
+        file.read_to_string(&mut contents)?;
+    }
+    // Parse the markdown
+    // NOTE(jladan): disable smart punctuation for latex
+    let options = Options::from_bits_truncate(0b1011110);
+    let parser = Parser::new_ext(&contents, options);
+    let mut html_out = String::new();
+    html::push_html(&mut html_out, parser);
+
+    Ok(response::from_string(html_out))
 }
 
 // }}}

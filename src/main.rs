@@ -46,7 +46,7 @@ fn handle_connection(mut stream: TcpStream, handler: Arc<Handler>) -> std::io::R
         let req = request::from_bufread(&mut buf_reader);
         // If the request works, then serve it
         if let Ok(req) = req {
-            // eprintln!("{req:#?}");
+            eprintln!("{req:#?}");
             let resp = handler.handle_request(req)?;
             let encoded = resp.into_bytes();
             stream.write_all(&encoded)?;
