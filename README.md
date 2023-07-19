@@ -4,7 +4,47 @@ A viewer for files in a zettelkasten system. The idea is that markdown is
 dynamically converted to html, so that it can be viewed in the web browser. All
 other files will be presented unchanged.
 
+This project was made as a learning exercise to make a functional rust program.
+As such, it contains a lot of "not invented here"-style code, and a simple
+threadpool rather than an asynchronous runtime like Tokio.
+
+## Usage
+
+Directories and markdown files are rendered using
+[tera](https://tera.netlify.app/) templates. Static files for rendering
+(javascript, css, etc.) can be placed in a separate `STATIC_DIR`, which is
+shadowed into the `WEB_ROOT` directory. A sample of static files and templates
+is provided in `samples`.
+
+Configuration is done through environment variables. To start serving files, run
+the commands,
+
+```bash
+export WEB_ROOT="/path/to/files"
+export STATIC_DIR="/path/to/sample/static"
+export TEMPLATE_DIR="/path/to/sample/templates"
+cargo run
+```
+
+It is possible to use relative paths, but absolute paths are recommended.
+
 ## Features
+
+Features in the server:
+- Multithreaded to support multiple connections
+- Full (recursive) directory contents serialized as json, or html
+- Markdown rendering using `pulldown-cmark`, accessible either
+    - inserted into a full document using `tera`, or
+    - "raw" by adding an "x-partial: true" header to the GET request
+
+The sample templates and static files implement:
+- Latex rendering support with Mathjax,
+- Syntax highlighting for code blocks using `highlight.js`
+- File tree navigation
+    - markdown files inserted into the main content view
+    - (history, and non-markdown files currently broken due to this feature)
+
+A full list of desired features to implement: 
 
 - [ ] Custom configuration 
     - [x] web root and static dir as environment variables
@@ -19,7 +59,7 @@ other files will be presented unchanged.
     - [x] uri maps to filesystem with ZETTEL_DIR as root
     - [x] "virtual" filesystem to check for static files (like css)
     - [x] show a directory listing for directory requests
-    - [ ] HEAD request support
+    - [x] HEAD request support
     - [ ] 404 page properly handled
         - [x] return 404 response
         - [ ] include 404 page
@@ -37,9 +77,6 @@ other files will be presented unchanged.
     - [ ] "Smart links" -- remap links to find closest match
     - [ ] Metadata from yaml headers or toml header
 - [ ] General Interface
-    - [ ] file browser pane
+    - [x] file browser pane
     - [ ] search bar by file name
     - [ ] button to open in neovim
-- [ ] ZettelServer integration
-    - [ ] Pull file list and links from zettelserver
-    - [ ] ...
