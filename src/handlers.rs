@@ -129,26 +129,28 @@ fn file_response(path: &Path) -> Result<Response<Vec<u8>>, std::io::Error> {
 
 /// Response for a found directory
 fn dir_response(path: &Path, accepts: Vec<AcceptFormat>, config: &Config, tera: &Tera) -> Response<Vec<u8>> {
+    let root_contents = walkdir::walk_dir(&config.rootdir , true)
+        .expect("Problem stripping prefix?");
     if let Ok(dirtree) = walkdir::walk_dir(path, false) {
         use AcceptFormat::*;
         for af in accepts {
             match af {
                 Json => return dir_json(dirtree, config),
-                PartialHtml => return dir_html(dirtree, "directory-chunk.html", tera),
-                Html | Any => return dir_html(dirtree, "directory.html", tera),
+                PartialHtml => return dir_html(dirtree, root_contents, "directory-chunk.html", tera),
+                Html | Any => return dir_html(dirtree, root_contents, "directory.html", tera),
             }
         }
         // Apparently no preferences?
-        return dir_html(dirtree, "directory.html", tera);
+        return dir_html(dirtree, root_contents, "directory.html", tera);
     } else {
         return response::server_error();
     }
 }
 
-fn dir_html(dirtree: walkdir::Directory, template: &str, tera: &Tera) -> Response<Vec<u8>> {
+fn dir_html(dirtree: walkdir::Directory, root_contents: walkdir::Directory, template: &str, tera: &Tera) -> Response<Vec<u8>> {
     let mut context = tera::Context::new();
     context.insert("dir_contents", &dirtree);
-    context.insert("dirtree", &dirtree);
+    context.insert("dirtree", &root_contents);
     match tera.render(template, &context) {
         Ok(rendered) => response::from_string(rendered),
         Err(e) => {eprintln!("{e}"); response::server_error()},
