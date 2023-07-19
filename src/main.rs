@@ -4,7 +4,8 @@ use std::{
     sync::Arc,
 };
 
-use zettel_web::{
+
+use simple_markdown_server::{
     handlers::Handler,
     request::{self, ReqError},
     response::IntoBytes, 

@@ -605,6 +605,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "simple-markdown-server"
+version = "0.2.0"
+dependencies = [
+ "http",
+ "httparse",
+ "pulldown-cmark",
+ "scopeguard",
+ "serde",
+ "serde_json",
+ "tera",
+ "threadpool",
+ "url-escape",
+ "walkdir",
+]
+
+[[package]]
 name = "siphasher"
 version = "0.3.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -958,19 +974,3 @@ name = "windows_x86_64_msvc"
 version = "0.48.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1a515f5799fe4961cb532f983ce2b23082366b898e52ffbce459c86f67c8378a"
-
-[[package]]
-name = "zettel-web"
-version = "0.1.0"
-dependencies = [
- "http",
- "httparse",
- "pulldown-cmark",
- "scopeguard",
- "serde",
- "serde_json",
- "tera",
- "threadpool",
- "url-escape",
- "walkdir",
-]

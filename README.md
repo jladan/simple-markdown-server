@@ -1,4 +1,4 @@
-# Zettel-Web
+# Simple Markdown Server
 
 A viewer for files in a zettelkasten system. The idea is that markdown is
 dynamically converted to html, so that it can be viewed in the web browser. All
@@ -80,3 +80,6 @@ A full list of desired features to implement:
     - [x] file browser pane
     - [ ] search bar by file name
     - [ ] button to open in neovim
+    - [ ] Client-side formatting updates on state-change
+        - [ ] Syntax highlighting
+        - [ ] Latex
