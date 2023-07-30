@@ -80,6 +80,6 @@ A full list of desired features to implement:
     - [x] file browser pane
     - [ ] search bar by file name
     - [ ] button to open in neovim
-    - [ ] Client-side formatting updates on state-change
-        - [ ] Syntax highlighting
-        - [ ] Latex
+    - [x] Client-side formatting updates on state-change
+        - [x] Syntax highlighting
+        - [x] Latex

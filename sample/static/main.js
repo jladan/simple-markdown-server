@@ -22,6 +22,8 @@ dirNav.addEventListener('click', (event) => {
         return response.text()
     }).then((body) => {
         contentView.innerHTML = body;
+        hljs.highlightAll();
+        MathJax.typeset();
     }).catch((error) => {
         console.log(`Error: ${error.message}`);
     });
