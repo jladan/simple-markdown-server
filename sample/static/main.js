@@ -15,11 +15,15 @@ dirNav.addEventListener('click', (event) => {
             "x-partial": "true",
         },
     }).then((response) => {
-        if (!response.ok) {
+        if (response.ok) {
+            history.pushState({}, 'new page', response.url);
+            return response.text();
+        } else if (response.status == 404) {
+            history.pushState({}, 'new page', response.url);
+            return `<h1>Page not found</h1><p>${response.url}</p>`;
+        } else {
             throw new Error(`HTTP error, status = ${response.status}`);
         }
-        history.pushState({}, 'new page', response.url);
-        return response.text()
     }).then((body) => {
         contentView.innerHTML = body;
         hljs.highlightAll();

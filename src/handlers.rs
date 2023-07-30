@@ -68,7 +68,7 @@ impl Handler {
             Resolved::Markdown(path) => markdown_response(&path, accepts, &self.config, &tera),
             Resolved::Directory(path) => 
                 Ok(dir_response(&path, accepts, &self.config, &tera)),
-            Resolved::None => Ok(not_found_response(req.uri().path())),
+            Resolved::None => Ok(not_found_response(req.uri().path(), &self.config, &tera)),
         }
     }
 
@@ -113,11 +113,26 @@ fn preferred_format(headers: &http::HeaderMap) -> Vec<AcceptFormat> {
 // Actual responses to a get request {{{
 
 /// Respond to a missing file
-fn not_found_response(path: &str) -> Response<Vec<u8>> {
-    let content = format!("File not found: {}", path);
-    let mut resp = response::from_string(content);
-    *resp.status_mut() = StatusCode::NOT_FOUND;
-    return resp;
+fn not_found_response(path: &str, config: &Config, tera: &Tera) -> Response<Vec<u8>> {
+    let root_contents = walkdir::walk_dir(&config.rootdir , true)
+        .expect("Problem stripping prefix?");
+    // Apply the template
+    use tera::Context;
+    let mut context = Context::new();
+    let html_out = format!("File not found: {}", path);
+    context.insert("content", &html_out);
+    context.insert("dirtree", &root_contents);
+    match tera.render(MARKDOWN_TEMPLATE, &context) {
+        Ok(html_out) => {
+            let mut resp = response::from_string(html_out);
+            *resp.status_mut() = StatusCode::NOT_FOUND;
+            resp
+        },
+        Err(e) => {
+            eprintln!("{e}");
+            response::server_error()
+        }
+    }
 }
 
 /// Respond with the contents of a file
